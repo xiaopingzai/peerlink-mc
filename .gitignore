@@ -1,0 +1,22 @@
+# Gradle
+.gradle/
+build/
+run/
+out/
+classes/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+
+# ForgeGradle / decompile leftovers
+forge/
+mdk/
+
+# OS
+.DS_Store
+Thumbs.db

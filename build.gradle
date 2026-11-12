@@ -1,0 +1,52 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven { url = 'https://maven.minecraftforge.net/' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+
+sourceCompatibility = targetCompatibility = '1.8'
+
+compileJava {
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+    encoding = 'UTF-8'
+}
+
+minecraft {
+    version = "1.12.2-14.23.5.2860"
+    mappings = "stable_39"
+    // The recovered sources still carry SRG method/field names (e.g. func_71410_x,
+    // field_146294_l). A stock MDK with MCP mappings may need manual name
+    // alignment before it compiles. See docs/BUILD.md for the known limitations.
+}
+
+version = project.mod_version
+group = 'icu.wuhui.voxlink'
+archivesBaseName = 'peerlink-mc'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // The released jar bundled ViaForge / ViaLegacy / ViaRewind / SpongePowered
+    // Mixin / fastutil / gson / slf4j. Those third-party artifacts are NOT part
+    // of this source tree; wire them as external dependencies when restoring a
+    // buildable project.
+}
+
+jar {
+    manifest {
+        attributes(
+            'Manifest-Version': '1.0',
+            'FMLCorePluginContainsFMLMod': 'true'
+        )
+    }
+}
