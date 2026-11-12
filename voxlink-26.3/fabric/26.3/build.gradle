@@ -1,0 +1,106 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.15.5'
+}
+
+version = project.mod_version + "-fabric"
+group = project.mod_group_id
+
+base {
+    archivesName = project.mod_id
+}
+
+repositories {
+    mavenCentral()
+    // // e4mc 封存(2026-10-05): Skye 拒绝外部使用其基础设施, 待自建 quiclime 兼容中继后启用; 启用步骤见记忆 voxlink-e4mc-propagation-landmines
+    // maven { url 'https://maven.is-quite.gay/' }
+}
+
+loom {
+}
+
+//debounce Android stub 仅PC编译用 不打包进jar
+sourceSets {
+    stubs {
+        java {
+            srcDir '../../core/src/stubs/java'
+        }
+    }
+    main {
+        compileClasspath += sourceSets.stubs.output
+        java {
+            srcDir '../../core/src/main/java'
+        }
+        resources {
+            srcDir '../../core/src/main/resources'
+        }
+    }
+}
+
+//debounce stubs编译不打包进jar 只为main提供android.*符号
+compileStubsJava {
+    options.release = Integer.parseInt(project.release_bytecode)
+}
+compileJava.dependsOn compileStubsJava
+jar {
+    exclude 'android/**'
+}
+
+// e4mc 封存: 待自建 quiclime 中继后启用
+sourceSets {
+    main {
+        java {
+            exclude 'icu/wuhui/voxlink/e4mc/**'
+            exclude 'icu/wuhui/voxlink/mixin/E4mcServerConnectionMixin.java'
+        }
+    }
+}
+
+dependencies {
+    // e4mc 封存(2026-10-05): Skye 拒绝外部使用其基础设施, 待自建 quiclime 兼容中继后启用; 启用步骤见记忆 voxlink-e4mc-propagation-landmines
+    /*
+    // e4mc 逃生通道: Skye 补丁版 QUIC 嵌包, native 由 natives.e4mc.link 运行时下发
+    implementation("io.netty.incubator:netty-incubator-codec-classes-quic:0.0.74.Final.e4mc") {
+        transitive = false
+    }
+    include("io.netty.incubator:netty-incubator-codec-classes-quic:0.0.74.Final.e4mc") {
+        transitive = false
+    }
+    */
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+}
+
+tasks.withType(ProcessResources).configureEach {
+    var replaceProperties = [
+        mod_id: project.mod_id,
+        mod_version: project.mod_version,
+        minecraft_version: project.minecraft_version,
+        minecraft_version_range: project.minecraft_version_range,
+        fabric_version_range : project.fabric_version_range,
+        fabric_loader_version_range: project.fabric_loader_version_range,
+        version: project.mod_version,
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['fabric.mod.json']) {
+        expand replaceProperties + [project: project]
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    it.options.release = Integer.parseInt(project.release_bytecode)
+    //压包体:去LVT,行号保留
+    it.options.debugOptions.debugLevel = "lines,source"
+}
+
+java {
+    withSourcesJar()
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(Integer.parseInt(project.java_version))
+    }
+}
+
+jar {
+    from("../../LICENSE") {}
+}

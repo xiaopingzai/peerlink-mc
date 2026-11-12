@@ -5,9 +5,13 @@
 This project is derived from the original **VoxLink** Minecraft mod.
 
 - Upstream project: <https://github.com/AUGUHDAR/VoxLink>
-- Original license: MIT (the original jar shipped an MIT `LICENSE.txt`)
-- The recovered source in this repository preserves the upstream copyright
-  notice as required by the MIT License.
+- Original license: **LGPL-3.0** (upstream `LICENSE`; the 26.3 Fabric jar's `fabric.mod.json` also declares `LGPL-3.0`).
+- This repository preserves the upstream copyright notice and provides the corresponding source, as required by LGPL-3.0.
+
+The repository contains two source sets:
+
+- `src/main/java/` — recovered by decompiling a released 1.12.2 Forge build (see "Recovered-source disclaimer" below).
+- `voxlink-26.3/` — clean upstream Gradle source synced for the Minecraft 26.3 Fabric build `1.2.2-26.3`; its own `LICENSE` is the upstream LGPL-3.0 full text.
 
 This repository is an **unofficial reconstructed / forked build**. It is not
 maintained by, affiliated with, endorsed by, or associated with the original

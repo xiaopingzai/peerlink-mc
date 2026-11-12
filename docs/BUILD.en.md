@@ -38,14 +38,14 @@ Reviewers require the project not to be confused with the original author or exi
 - Use **PeerLink** as the public project name, with repository URL slug `peerlink-mc`; do not make the title, description, or icon look like the official original VoxLink project.
 - The `name="VoxLink CV"` in the `VoxLinkMod` annotation and the `name` / `authors` in `mcmod.info` are in-code display names. To fully distinguish, you can change them in your own released build (changing the modid also changes the resource namespace and language paths, which must be adjusted together).
 - `assets/voxlink/icon.png` comes from the original jar and is an original brand asset; **replace it with your own icon before release** to avoid brand confusion.
-- The description may reference the original work, but must state clearly that this is an unofficial reconstruction/derivative and does not imply association with or endorsement by the original author; preserve the MIT copyright attribution (see `LICENSE` / `NOTICE.md`).
+- The description may reference the original work, but must state clearly that this is an unofficial reconstruction/derivative and does not imply association with or endorsement by the original author; keep the LGPL-3.0 copyright attribution and corresponding source availability (see `LICENSE` / `NOTICE.md`).
 
 ## 5. Modrinth release self-check list
 
 - [ ] The source-code link points to the repository you own (no longer the original author's repo)
 - [ ] Project name / slug / icon have been changed to the new brand, with no confusion
 - [ ] The description states this is an unofficial derivative with no association to the original author
-- [ ] `LICENSE` preserves the original-work MIT attribution notice
+- [ ] `LICENSE` is the upstream LGPL-3.0 full text and preserves the original-work attribution notice
 - [ ] Third-party protocol libraries are not committed as this project's source; their identities are listed in `NOTICE.md`
 - [ ] Version number, `mcmod.info`, and language namespace match the actual modid
 

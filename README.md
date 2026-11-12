@@ -2,11 +2,11 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
-Minecraft Java 版 **1.12.2** Forge 客户端模组，基于房间代码的 P2P 多人联机：快速让朋友上线，或在大厅找玩伴；通过打洞/中继直连，无需端口转发、无需专用服务器，也无需第三方 VPN。
+基于房间代码的 P2P 多人联机模组：快速让朋友上线，或在大厅找玩伴；通过打洞/中继直连，无需端口转发、无需专用服务器，也无需第三方 VPN。
 
 > 仓库 slug：`peerlink-mc`
-> 兼容：Minecraft Java 1.12.2（Forge 客户端，`clientSideOnly`）
-> 状态：反编译重建的源码存档 + 修复记录（见下方「现状与限制」）
+> 本仓库含两套源码：根目录 `src/` 为 **1.12.2 Forge** 反编译存档；`voxlink-26.3/` 为对齐上游的 **Minecraft 26.3 Fabric**（`1.2.2-26.3`）干净源码。
+> 状态：1.12.2 为反编译重建的源码存档 + 修复记录；26.3 为上游 Gradle 工程源码同步（见下方「26.3 Fabric 源码」）。
 
 ## 现状与限制（请先阅读）
 
@@ -32,18 +32,32 @@ peerlink-mc/
 ├── src/main/resources/
 │   ├── mcmod.info
 │   └── assets/voxlink/lang/        # en_US / zh_CN 语言文件、图标
+├── voxlink-26.3/                                       # 上游 Fabric 26.3 源码同步（1.2.2-26.3）
+│   ├── LICENSE                                         # LGPL-3.0 全文（取自上游仓库）
+│   ├── core/src/main/java/icu/wuhui/voxlink/           # 共享引擎、平台抽象、陶瓦、中继等
+│   ├── core/src/main/resources/assets/voxlink/        # 13 种语言文件、图标
+│   └── fabric/26.3/                                    # Fabric 26.3 模块：build.gradle、入口、mixin、界面
 ├── docs/
 │   ├── BUILD.md       # 构建恢复说明、反编译局限、已知遗留
 │   └── FIXES.md       # 本版本相对原始构建修复的问题清单
-├── LICENSE            # MIT（保留原作品归属）
+├── LICENSE            # LGPL-3.0（保留原作品归属）
 └── NOTICE.md          # 归属声明与第三方组件说明
 ```
 
+## 26.3 Fabric 源码
+
+`voxlink-26.3/` 按上游仓库的多模块布局同步，对应已发布构建 `voxlink-1.2.2-26.3-fabric`：
+
+- `core/`：跨加载器共享的引擎、平台抽象、陶瓦与中继代码，以及 Android 桩（`core/src/stubs`，仅编译用、不打包进 jar）。
+- `fabric/26.3/`：Fabric 26.3 模块，`build.gradle` 通过相对路径引用 `../../core`；`fabric.mod.json` 中的版本/区间由 Gradle 属性在构建期替换。
+- 与上传 jar 已核对：自有外层类 127 个一一对应，13 个语言文件与图标 md5 一致，`voxlink.mixins.json` 内容一致（仅缩进差异）；`e4mc/**` 按上游 `build.gradle` 配置在打包时排除，jar 中不含这些类。
+- 该模块为上游干净 Java 工程，构建需要 Java 25、Fabric Loom 与 Fabric API 依赖；本环境未做完整 Gradle 编译验证。
+
 ## 归属与合规
 
-- 本项目衍生自原作者的 VoxLink 作品（上游：<https://github.com/AUGUHDAR/VoxLink>，MIT）。
+- 本项目衍生自原作者的 VoxLink 作品（上游：<https://github.com/AUGUHDAR/VoxLink>，**LGPL-3.0**）。
 - 本仓库为**非官方重建/分支**，与原作者、现有同名项目之间不存在关联、代言或背书关系。
-- 沿用 MIT 许可证，保留原作者版权声明；详见 [LICENSE](LICENSE) 与 [NOTICE.md](NOTICE.md)。
+- 按上游 **LGPL-3.0** 许可证保留版权声明与源码；详见 [LICENSE](LICENSE) 与 [NOTICE.md](NOTICE.md)。
 
 ## 文档
 

@@ -2,11 +2,11 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
-A Forge client mod for **Minecraft Java Edition 1.12.2**, providing room-code based P2P multiplayer: get friends online quickly or find players in the lobby. It connects directly via hole punching / relay — no port forwarding, no dedicated server, and no third-party VPN.
+A room-code based P2P multiplayer mod: get friends online quickly or find players in the lobby. It connects directly via hole punching / relay — no port forwarding, no dedicated server, and no third-party VPN.
 
 > Repository slug: `peerlink-mc`
-> Compatibility: Minecraft Java 1.12.2 (Forge client, `clientSideOnly`)
-> Status: decompiled source archive + fix records (see "Status & limitations" below)
+> This repository holds two source sets: `src/` at the root is the **1.12.2 Forge** decompiled archive; `voxlink-26.3/` is the upstream-aligned **Minecraft 26.3 Fabric** (`1.2.2-26.3`) clean source.
+> Status: the 1.12.2 tree is a decompiled reconstructed archive + fix records; the 26.3 tree is an upstream Gradle project source sync (see "26.3 Fabric sources" below).
 
 ## Status & limitations (read first)
 
@@ -32,18 +32,32 @@ peerlink-mc/
 ├── src/main/resources/
 │   ├── mcmod.info
 │   └── assets/voxlink/lang/        # en_US / zh_CN lang files, icon
+├── voxlink-26.3/                                       # Upstream Fabric 26.3 source sync (1.2.2-26.3)
+│   ├── LICENSE                                         # LGPL-3.0 full text (from upstream)
+│   ├── core/src/main/java/icu/wuhui/voxlink/           # Shared engine, platform abstraction, Terracotta, relay
+│   ├── core/src/main/resources/assets/voxlink/        # 13 lang files, icon
+│   └── fabric/26.3/                                    # Fabric 26.3 module: build.gradle, entrypoints, mixins, screens
 ├── docs/
 │   ├── BUILD.md       # Build recovery notes, decompile limitations, known leftovers
 │   └── FIXES.md       # Fix list for this version vs the original build
-├── LICENSE            # MIT (original-work attribution preserved)
+├── LICENSE            # LGPL-3.0 (original-work attribution preserved)
 └── NOTICE.md          # Attribution and third-party component notice
 ```
 
+## 26.3 Fabric sources
+
+`voxlink-26.3/` follows the upstream multi-module layout and corresponds to the released build `voxlink-1.2.2-26.3-fabric`:
+
+- `core/`: cross-loader shared engine, platform abstraction, Terracotta and relay code, plus Android stubs (`core/src/stubs`, compile-only, not packaged into the jar).
+- `fabric/26.3/`: the Fabric 26.3 module; its `build.gradle` references `../../core` via relative paths. Version and version ranges in `fabric.mod.json` are expanded from Gradle properties at build time.
+- Verified against the uploaded jar: 127 own outer classes match one-to-one; the 13 lang files and icon match by md5; `voxlink.mixins.json` matches in content (indentation only differs). `e4mc/**` is excluded from packaging by the upstream `build.gradle` and is absent from the jar.
+- This module is an upstream clean Java project; building it requires Java 25, Fabric Loom and Fabric API dependencies. No full Gradle build verification was performed in this environment.
+
 ## Attribution & compliance
 
-- This project is derived from the original VoxLink work (upstream: <https://github.com/AUGUHDAR/VoxLink>, MIT).
+- This project is derived from the original VoxLink work (upstream: <https://github.com/AUGUHDAR/VoxLink>, **LGPL-3.0**).
 - This repository is an **unofficial reconstructed / forked build**. There is no association, endorsement, or affiliation with the original author or any existing project of a similar name.
-- It is released under the MIT license, preserving the original copyright notice. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
+- It is distributed under the upstream **LGPL-3.0** license, preserving the copyright notice and source. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
 
 ## Documentation
 
