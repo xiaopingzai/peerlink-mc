@@ -13,7 +13,7 @@ A Forge client mod for **Minecraft Java Edition 1.12.2**, providing room-code ba
 The Java sources in this repository were recovered by decompiling a released 1.12.2 build with CFR 0.152 and then applying the verified fixes. This is **not a clean project written from scratch**:
 
 - The sources still carry the 1.12.2 **SRG obfuscated names** (e.g. `func_71410_x()`, `field_146294_l`, `func_135052_a`) and a few CFR decompilation artifacts.
-- It **may not compile out of the box** against a fresh ForgeGradle MDK: MCP mapping names usually need to be aligned first, and a handful of incompletely decompiled methods need manual cleanup. Known issues are listed in [docs/BUILD.md](docs/BUILD.md).
+- It **may not compile out of the box** against a fresh ForgeGradle MDK: MCP mapping names usually need to be aligned first, and a handful of incompletely decompiled methods need manual cleanup. Known issues are listed in [docs/BUILD.en.md](docs/BUILD.en.md).
 - The repository is a **publicly auditable source archive and fix record**, used as the source-code link for the Modrinth project. Runnable mod jars are published on the Modrinth version page.
 - The third-party protocol-library bytecode bundled in the original jar is **not** included here (see [NOTICE.md](NOTICE.md)).
 
@@ -47,8 +47,8 @@ peerlink-mc/
 
 ## Documentation
 
-- [docs/FIXES.md](docs/FIXES.md) — Fix records for crashes, field references, language namespaces, etc.
-- [docs/BUILD.md](docs/BUILD.md) — How to restore a compilable project, known leftovers, and the release self-check list.
+- [docs/FIXES.en.md](docs/FIXES.en.md) — Fix records for crashes, field references, language namespaces, etc.
+- [docs/BUILD.en.md](docs/BUILD.en.md) — How to restore a compilable project, known leftovers, and the release self-check list.
 
 ## Pushing this repository to GitHub
 
