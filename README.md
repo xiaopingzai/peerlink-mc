@@ -1,5 +1,7 @@
 # PeerLink
 
+[English](README.en.md) | [简体中文](README.md)
+
 Minecraft Java 版 **1.12.2** Forge 客户端模组，基于房间代码的 P2P 多人联机：快速让朋友上线，或在大厅找玩伴；通过打洞/中继直连，无需端口转发、无需专用服务器，也无需第三方 VPN。
 
 > 仓库 slug：`peerlink-mc`
