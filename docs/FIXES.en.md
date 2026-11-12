@@ -28,6 +28,16 @@ The modid annotation and `mcmod.info` were both `voxlink`, but the logger name a
 
 After the fix: the logger name and version-query constants are unified to `"voxlink"`, aligned with the modid; `VERSION` / `MOD_VERSION` are `1.1.8-1`.
 
+### 3. Server domain migration (P1, `VoxLinkConfig` / `VoxLinkScreen`)
+
+Since 2026-11-11 the old domain `p2p.wuhui.icu` has been decommissioned (clients below 1.2.1 must change their config or upgrade to connect). Aligned with the upstream 1.20.1 config:
+
+- The default `serverUrl` changed from `https://p2p.wuhui.icu` to `https://link.voxdev.top` (constant and field default updated together);
+- `validate()` adds legacy-domain migration: a saved `serverUrl` containing `wuhui.icu` is rewritten to the new default on load with a warn log;
+- The main-screen Terracotta download log link changed from the old domain `/terracotta` to the new site root.
+
+> Note: this repo is a decompiled source archive; this change is source-level and was not rebuilt/repackaged in this environment. Existing published jars still need `serverUrl` changed manually in `voxlink.json` per the announcement, or be replaced by a rebuilt artifact.
+
 ## Verification evidence (shipped jar)
 
 - Real JVM `-Xverify:all`: all mod classes loaded together with stub external classes, 0 failures;
@@ -42,7 +52,7 @@ After the fix: the logger name and version-query constants are unified to `"voxl
 | 1 | `network/LogUploadManager.notifyUploadedInChat` | The chat box prints the raw language key `voxlink.log_upload.uploaded` directly, without an I18n wrapper | The class keeps its original valid bytecode; to switch to `I18n.func_135052_a(...)`, stack frames must be recomputed with `ClassWriter.COMPUTE_FRAMES` — do not hand-write the exception-handler frame types |
 | 2 | `VoxLinkConstants.MOD_VERSION` | Still `"1.1.6"`, drifting from `VoxLinkMod`'s `1.1.8-1` | Display/reporting only, no functional impact; recommend a single source of truth for the version |
 | 3 | `thenAccept` chain in `LogUploadManager` | Future exceptions are not observed and are silently swallowed | Recommend adding an `exceptionally` log |
-| 4 | Default signaling/hole-punching server endpoints | The upstream default STUN/signaling/relay addresses are kept in code | Replace them with your own server addresses when self-hosting |
+| 4 | Default signaling/hole-punching server endpoints | Default `serverUrl` migrated to `https://link.voxdev.top`; STUN/relay addresses are delivered by signaling | Replace with your own server addresses when self-hosting |
 
 ## Historical issues out of scope for this repository
 

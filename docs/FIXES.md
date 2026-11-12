@@ -26,6 +26,16 @@ modid 注解与 `mcmod.info` 均为 `voxlink`，但日志名与版本查询仍�
 
 修复后：日志名与版本查询常量统一为 `"voxlink"`，与 modid 对齐；`VERSION` / `MOD_VERSION` 为 `1.1.8-1`。
 
+### 3. 服务器域名迁移（P1，`VoxLinkConfig` / `VoxLinkScreen`）
+
+自 2026 年 11 月 11 日起旧域名 `p2p.wuhui.icu` 停用（低于 1.2.1 的旧客户端需改配置或升级才能连接）。对齐上游 1.20.1 配置逻辑：
+
+- 默认 `serverUrl` 由 `https://p2p.wuhui.icu` 改为 `https://link.voxdev.top`（常量与字段默认值同步）；
+- `validate()` 增加旧域名迁移：落盘配置里的 `serverUrl` 只要包含 `wuhui.icu`，加载时自动改写为新默认并打 warn 日志；
+- 主界面陶瓦下载日志链接由旧域名 `/terracotta` 改为新官网根地址。
+
+> 注：本仓库为反编译恢复的源码存档，本次改动是源码级调整，未在本环境重新编译打包；现存已发布 jar 仍需按公告在 `voxlink.json` 中手动改 `serverUrl`，或用重新构建的产物替换。
+
 ## 验证证据（对应已交付 jar）
 
 - 真实 JVM `-Xverify:all`：模组类连同桩外部类全部加载通过，0 失败；
@@ -40,7 +50,7 @@ modid 注解与 `mcmod.info` 均为 `voxlink`，但日志名与版本查询仍�
 | 1 | `network/LogUploadManager.notifyUploadedInChat` | 聊天框直接输出原始语言键 `voxlink.log_upload.uploaded`，未做 I18n 包装 | 该类保留原始有效字节码；如需改为 `I18n.func_135052_a(...)`，必须用 `ClassWriter.COMPUTE_FRAMES` 重算栈帧，不能手写异常处理器帧类型 |
 | 2 | `VoxLinkConstants.MOD_VERSION` | 仍为 `"1.1.6"`，与 `VoxLinkMod` 的 `1.1.8-1` 漂移 | 仅展示/上报用，无功能影响；建议统一为单一版本来源 |
 | 3 | `LogUploadManager` 的 `thenAccept` 链 | 未观察 future 异常，异常被静默吞掉 | 建议补 `exceptionally` 日志 |
-| 4 | 信令/打洞默认服务器端点 | 代码内保留上游默认 STUN/信令/中继地址 | 自托管时需按自己的服务端地址替换 |
+| 4 | 信令/打洞默认服务器端点 | 默认 `serverUrl` 已迁移至 `https://link.voxdev.top`；STUN/中继地址由信令下发 | 自托管时需按自己的服务端地址替换 |
 
 ## 不属于本仓库范围的历史问题
 

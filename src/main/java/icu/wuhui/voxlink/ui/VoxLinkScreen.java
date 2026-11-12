@@ -61,7 +61,7 @@ extends VoxLinkScreenBase {
     @Override
     protected void func_146284_a(GuiButton guiButton) {
         if (guiButton.field_146127_k == TERRA_BTN) {
-            VoxLinkMod.LOGGER.info("Download terracotta: https://p2p.wuhui.icu/terracotta");
+            VoxLinkMod.LOGGER.info("Download terracotta: https://link.voxdev.top");
             return;
         }
         if (guiButton.field_146127_k == CONFIG_BTN) {

@@ -32,7 +32,7 @@ import org.apache.logging.log4j.Logger;
 public class VoxLinkConfig {
     private static final Logger LOGGER = LogManager.getLogger((String)"voxlink-config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final String DEFAULT_SERVER_URL = "https://p2p.wuhui.icu";
+    private static final String DEFAULT_SERVER_URL = "https://link.voxdev.top";
     private static final int DEFAULT_HEARTBEAT_INTERVAL = 5;
     private static final int DEFAULT_SIGNAL_POLL_INTERVAL = 3000;
     private static final int DEFAULT_CONNECTION_TIMEOUT = 20000;
@@ -47,7 +47,7 @@ public class VoxLinkConfig {
     private static final int MAX_MAX_RECONNECT = 10;
     private static final int CURRENT_CONFIG_VERSION = 1;
     private volatile int configVersion = 1;
-    private volatile String serverUrl = "https://p2p.wuhui.icu";
+    private volatile String serverUrl = "https://link.voxdev.top";
     private volatile boolean autoUPnP = true;
     private volatile boolean offlineMode = true;
     private volatile int heartbeatInterval = 5;
@@ -139,6 +139,11 @@ public class VoxLinkConfig {
     private void validate() {
         if (this.serverUrl != null) {
             this.serverUrl = this.serverUrl.replaceAll("/+$", "");
+        }
+        // 域名迁移：旧域名落盘时改写为默认
+        if (this.serverUrl != null && this.serverUrl.contains("wuhui.icu")) {
+            LOGGER.warn("Deprecated serverUrl {} migrated to {}", this.serverUrl, DEFAULT_SERVER_URL);
+            this.serverUrl = DEFAULT_SERVER_URL;
         }
         if (this.heartbeatInterval < 5) {
             this.heartbeatInterval = 5;
