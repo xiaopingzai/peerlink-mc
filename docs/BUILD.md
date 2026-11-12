@@ -47,15 +47,8 @@
 - [ ] 第三方协议库未作为本项目源码提交，各自身份在 `NOTICE.md` 列明
 - [ ] 版本号、`mcmod.info`、语言命名空间与实际 modid 一致
 
-## 6. 推送本仓库到 GitHub
+## 6. 仓库地址
 
-```bash
-git init
-git add .
-git commit -m "PeerLink 1.12.2-1: recovered source + fixes"
-git branch -M main
-git remote add origin https://github.com/<你的用户名>/peerlink-mc.git
-git push -u origin main
-```
+本仓库已推送到：<https://github.com/xiaopingzai/peerlink-mc>（公开，默认分支 `main`）。
 
-推送后，在 Modrinth 项目页「相关链接 → 源代码」填写本仓库地址；「编辑名称」处把显示名与 slug 改为 PeerLink / `peerlink-mc`。
+在 Modrinth 项目页「相关链接 → 源代码」填写该仓库地址；「编辑名称」处把显示名与 slug 改为 PeerLink / `peerlink-mc`。Modrinth 主页：<https://modrinth.com/user/xiaopingzai>。

@@ -50,13 +50,7 @@ peerlink-mc/
 - [docs/FIXES.en.md](docs/FIXES.en.md) — Fix records for crashes, field references, language namespaces, etc.
 - [docs/BUILD.en.md](docs/BUILD.en.md) — How to restore a compilable project, known leftovers, and the release self-check list.
 
-## Pushing this repository to GitHub
+## Links
 
-```bash
-git init
-git add .
-git commit -m "PeerLink 1.12.2-1: recovered source + fixes"
-git branch -M main
-git remote add origin https://github.com/<your-username>/peerlink-mc.git
-git push -u origin main
-```
+- Source repository: <https://github.com/xiaopingzai/peerlink-mc>
+- Modrinth profile: <https://modrinth.com/user/xiaopingzai>

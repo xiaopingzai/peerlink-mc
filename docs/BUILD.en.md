@@ -49,15 +49,8 @@ Reviewers require the project not to be confused with the original author or exi
 - [ ] Third-party protocol libraries are not committed as this project's source; their identities are listed in `NOTICE.md`
 - [ ] Version number, `mcmod.info`, and language namespace match the actual modid
 
-## 6. Pushing this repository to GitHub
+## 6. Repository address
 
-```bash
-git init
-git add .
-git commit -m "PeerLink 1.12.2-1: recovered source + fixes"
-git branch -M main
-git remote add origin https://github.com/<your-username>/peerlink-mc.git
-git push -u origin main
-```
+This repository is already pushed to: <https://github.com/xiaopingzai/peerlink-mc> (public, default branch `main`).
 
-After pushing, fill this repository's address in the Modrinth project page under "Related links → Source code"; in "Edit name", change the display name and slug to PeerLink / `peerlink-mc`.
+On the Modrinth project page, fill this repository's address under "Related links → Source code"; in "Edit name", change the display name and slug to PeerLink / `peerlink-mc`. Modrinth profile: <https://modrinth.com/user/xiaopingzai>.

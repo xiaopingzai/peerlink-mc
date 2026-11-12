@@ -50,13 +50,7 @@ peerlink-mc/
 - [docs/FIXES.md](docs/FIXES.md) — 崩溃、字段引用、语言命名空间等修复记录
 - [docs/BUILD.md](docs/BUILD.md) — 如何尝试恢复可编译工程、已知遗留与上线自检清单
 
-## 从本仓库推送（自建 GitHub）
+## 相关链接
 
-```bash
-git init
-git add .
-git commit -m "PeerLink 1.12.2-1: recovered source + fixes"
-git branch -M main
-git remote add origin https://github.com/<你的用户名>/peerlink-mc.git
-git push -u origin main
-```
+- 源码仓库：<https://github.com/xiaopingzai/peerlink-mc>
+- Modrinth 主页：<https://modrinth.com/user/xiaopingzai>
