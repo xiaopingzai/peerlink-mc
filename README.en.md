@@ -67,4 +67,5 @@ peerlink-mc/
 ## Links
 
 - Source repository: <https://github.com/xiaopingzai/peerlink-mc>
+- Wiki: <https://github.com/xiaopingzai/peerlink-mc/wiki>
 - Modrinth profile: <https://modrinth.com/user/xiaopingzai>
