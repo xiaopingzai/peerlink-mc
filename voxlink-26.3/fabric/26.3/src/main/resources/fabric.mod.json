@@ -2,15 +2,15 @@
     "schemaVersion": 1,
     "id": "${mod_id}",
     "version": "${version}",
-    "name": "VoxLink",
-    "description": "轻松地与其他玩家进行联机/Easily connect with other players",
+    "name": "PeerLink",
+    "description": "PeerLink — 非官方派生自 VoxLink by AUGUHDAR / Unofficial fork of VoxLink by AUGUHDAR. 轻松地与其他玩家进行联机/Easily connect with other players",
     "authors": [
         "AUGUHDAR"
     ],
     "contact": {
         "homepage": "https://link.voxdev.top",
-        "sources": "https://github.com/AUGUHDAR/VoxLink",
-        "issues": "https://github.com/AUGUHDAR/VoxLink/issues"
+        "sources": "https://github.com/xiaopingzai/peerlink-mc",
+        "issues": "https://github.com/xiaopingzai/peerlink-mc/issues"
     },
     "license": "LGPL-3.0",
     "icon": "assets/voxlink/icon.png",

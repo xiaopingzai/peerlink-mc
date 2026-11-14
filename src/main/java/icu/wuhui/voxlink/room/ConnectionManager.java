@@ -29,6 +29,7 @@ import icu.wuhui.voxlink.network.PunchFailureClassifier;
 import icu.wuhui.voxlink.network.PunchParams;
 import icu.wuhui.voxlink.network.PunchProfile;
 import icu.wuhui.voxlink.network.PunchResult;
+import icu.wuhui.voxlink.network.PunchStrategy;
 import icu.wuhui.voxlink.network.PunchStrategySelector;
 import icu.wuhui.voxlink.network.PunchTuner;
 import icu.wuhui.voxlink.network.RelayBridge;
@@ -2312,8 +2313,8 @@ public class ConnectionManager {
                         if (this.punchSkipDirect()) {
                             VoxLinkMod.LOGGER.info("[Connection] Wave 1: Skip UDP punch (tuner FIREWALL_DETECTED)");
                         } else {
-                            switch (1.$SwitchMap$icu$wuhui$voxlink$network$PunchStrategy[((Enum)object).ordinal()]) {
-                                case 1: {
+                            switch ((PunchStrategy) object) {
+                                case DIRECT_ONLY: {
                                     VoxLinkMod.LOGGER.info("[Connection] Wave 1: Try UDP punch (DIRECT_ONLY)");
                                     this.tryUdpPunch(roomState, string, string2, string3, n, string4, n2, n3, n4, n5);
                                     if (n3 != 0 || !this.reversePunchAttempted.compareAndSet(false, true)) break;
@@ -2321,7 +2322,7 @@ public class ConnectionManager {
                                     this.startReversePunch(roomState);
                                     break;
                                 }
-                                case 2: {
+                                case DIRECT_WITH_REVERSE_PARALLEL: {
                                     VoxLinkMod.LOGGER.info("[Connection] Wave 1: Try UDP punch (DIRECT_WITH_REVERSE_PARALLEL cycle={})", (Object)n3);
                                     this.tryUdpPunch(roomState, string, string2, string3, n, string4, n2, n3, n4, n5);
                                     if (n3 < 1 || !this.reversePunchAttempted.compareAndSet(false, true)) break;
@@ -2329,7 +2330,7 @@ public class ConnectionManager {
                                     this.startReversePunch(roomState);
                                     break;
                                 }
-                                case 3: {
+                                case REVERSE_FIRST: {
                                     if (n3 == 0 && this.reversePunchAttempted.compareAndSet(false, true)) {
                                         VoxLinkMod.LOGGER.info("[Connection] Wave 1: REVERSE_FIRST start reverse punch first");
                                         this.startReversePunch(roomState);
@@ -2338,7 +2339,7 @@ public class ConnectionManager {
                                     this.tryUdpPunch(roomState, string, string2, string3, n, string4, n2, n3, n4, n5);
                                     break;
                                 }
-                                case 4: {
+                                case RELAY_FALLBACK_FAST: {
                                     if (n3 < 2) {
                                         VoxLinkMod.LOGGER.info("[Connection] Wave 1: Try UDP punch (RELAY_FALLBACK_FAST cycle={})", (Object)n3);
                                         this.tryUdpPunch(roomState, string, string2, string3, n, string4, n2, n3, n4, n5);
@@ -2354,13 +2355,13 @@ public class ConnectionManager {
                                     this.tryUdpPunch(roomState, string, string2, string3, n, string4, n2, n3, n4, n5);
                                     break;
                                 }
-                                case 5: {
+                                case REVERSE_ONLY: {
                                     if (!this.reversePunchAttempted.compareAndSet(false, true)) break;
                                     VoxLinkMod.LOGGER.info("[Connection] Wave 1: REVERSE_ONLY start reverse punch (skip forward)");
                                     this.startReversePunch(roomState);
                                     break;
                                 }
-                                case 6: {
+                                case PARALLEL_FROM_START: {
                                     VoxLinkMod.LOGGER.info("[Connection] Wave 1: PARALLEL_FROM_START forward+reverse (cycle={})", (Object)n3);
                                     if (this.reversePunchAttempted.compareAndSet(false, true)) {
                                         VoxLinkMod.LOGGER.info("[Connection] Wave 1: PARALLEL_FROM_START start reverse punch");
@@ -2369,7 +2370,7 @@ public class ConnectionManager {
                                     this.tryUdpPunch(roomState, string, string2, string3, n, string4, n2, n3, n4, n5);
                                     break;
                                 }
-                                case 7: {
+                                case REVERSE_THEN_FORWARD: {
                                     if (this.reversePunchAttempted.compareAndSet(false, true)) {
                                         VoxLinkMod.LOGGER.info("[Connection] Wave 1: REVERSE_THEN_FORWARD start reverse punch");
                                         this.startReversePunch(roomState);
