@@ -2,11 +2,33 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
-A room-code based P2P multiplayer mod: get friends online quickly or find players in the lobby. It connects directly via hole punching / relay — no port forwarding, no dedicated server, and no third-party VPN.
+PeerLink is a lightweight P2P multiplayer mod that lets you and your friends join each other's worlds using short room codes — no port forwarding, no dedicated server, and no third-party VPN.
 
 > Repository slug: `peerlink-mc`
 > This repository holds two source sets: `src/` at the root is the **1.12.2 Forge** decompiled archive; `voxlink-26.3/` is the upstream-aligned **Minecraft 26.3 Fabric** (`1.2.2-26.3`) clean source.
 > Status: the 1.12.2 tree is a decompiled reconstructed archive + fix records; the 26.3 tree is an upstream Gradle project source sync (see "26.3 Fabric sources" below).
+
+## Features
+
+- **Room-code matchmaking**: host a world and get a short 6-character code (e.g. `CUBN6Z`, charset `A-HJ-NP-Z2-9`); share it with friends, who paste it in PeerLink to connect.
+- **NAT traversal**: automatic UDP hole punching with STUN. When direct P2P isn't possible (symmetric NAT / CGNAT), it falls back to relay.
+- **Room lobby**: browse public rooms by category — Survival, Creative, Redstone, PvP, RPG, Custom — with player count and NAT type at a glance.
+- **LAN detection**: if you and the host are on the same local network, the connection goes direct over LAN.
+- **Mod sync**: the host publishes its mod list; guests receive a diff with real names, icons and direct downloads before joining.
+- **Controls**: press **V** in-game to open the PeerLink menu; buttons are also available on the title screen and pause menu.
+- **Multilingual**: 13 language packs, the same set as the upstream mod.
+
+## How to use
+
+1. Install the mod and launch Minecraft.
+2. The host opens their world to LAN, or uses the **Create Room** button.
+3. The host copies the room code from the PeerLink menu.
+4. Friends press **V**, select **Join Room**, paste the code, and connect.
+
+## Signaling server
+
+- Default signaling server: `https://link.voxdev.top`.
+- Legacy `wuhui.icu` addresses are rewritten to the current domain automatically.
 
 ## Status & limitations (read first)
 
@@ -55,9 +77,9 @@ peerlink-mc/
 
 ## Attribution & compliance
 
-- This project is derived from the original VoxLink work (upstream: <https://github.com/AUGUHDAR/VoxLink>, **LGPL-3.0**).
+- Original VoxLink by **AUGUHDAR** — <https://github.com/AUGUHDAR/VoxLink>.
+- This project is derived from the original VoxLink work and is distributed under the upstream **GNU Lesser General Public License v3.0 (LGPL-3.0)**, preserving the copyright notice and source. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
 - This repository is an **unofficial reconstructed / forked build**. There is no association, endorsement, or affiliation with the original author or any existing project of a similar name.
-- It is distributed under the upstream **LGPL-3.0** license, preserving the copyright notice and source. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
 
 ## Documentation
 
