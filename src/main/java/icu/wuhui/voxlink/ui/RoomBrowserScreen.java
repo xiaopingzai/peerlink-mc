@@ -162,7 +162,7 @@ extends VoxLinkScreenBase {
         GuiScreen.func_73734_a((int)0, (int)0, (int)this.field_146294_l, (int)this.field_146295_m, (int)-1879048192);
         String string = I18n.func_135052_a((String)"voxlink.gui.lobby", (Object[])new Object[0]);
         this.field_146289_q.func_78276_b(string, (this.field_146294_l - this.field_146289_q.func_78256_a(string)) / 2, 10, 0xFFFFFF);
-        String string2 = "VoxLink 1.1.6";
+        String string2 = "VoxLink 1.1.9";
         this.field_146289_q.func_78276_b(string2, this.field_146294_l - this.field_146289_q.func_78256_a(string2) - 6, 10, 0x888888);
         int n3 = (this.field_146294_l - 320) / 2;
         this.hoverCard = -1;

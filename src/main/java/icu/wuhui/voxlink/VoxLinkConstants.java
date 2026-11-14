@@ -9,7 +9,7 @@ package icu.wuhui.voxlink;
 import net.minecraftforge.fml.common.Loader;
 
 public final class VoxLinkConstants {
-    public static final String MOD_VERSION = "1.1.6";
+    public static final String MOD_VERSION = "1.1.9";
     public static final String GAME_VERSION = "1.12x";
     public static final String LOADER = "forge";
     public static final int PROTOCOL_VERSION = 340;

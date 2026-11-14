@@ -193,7 +193,7 @@ public class PeerServer {
         jsonObject.addProperty("gameVersion", cachedGameVersion);
         jsonObject.addProperty("serverProtocolVersion", (Number)cachedProtocolVersion);
         jsonObject.addProperty("geyserLoaded", Boolean.valueOf(false));
-        jsonObject.addProperty("voxlinkVersion", "1.1.8");
+        jsonObject.addProperty("voxlinkVersion", "1.1.9");
         jsonObject.add("mods", GSON.toJsonTree(cachedMods));
         return jsonObject;
     }

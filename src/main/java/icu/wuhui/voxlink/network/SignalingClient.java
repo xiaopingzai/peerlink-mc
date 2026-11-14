@@ -466,7 +466,7 @@ public class SignalingClient {
         String string2 = string.startsWith("http") ? string : this.getRpcBaseUrl() + string;
         VoxLinkMod.LOGGER.debug("[SignalingClient] POST {}", (Object)string2);
         long l2 = System.currentTimeMillis();
-        return ((CompletableFuture)((CompletableFuture)Http8.postAsync(string2, jsonObject, "Mozilla/5.0 (Java) VoxLink/1.1.6", l).applyToEither((CompletionStage)SignalingClient.delayedFail(l, TimeUnit.MILLISECONDS), Function.identity())).thenApply(response -> {
+        return ((CompletableFuture)((CompletableFuture)Http8.postAsync(string2, jsonObject, "Mozilla/5.0 (Java) VoxLink/1.1.9", l).applyToEither((CompletionStage)SignalingClient.delayedFail(l, TimeUnit.MILLISECONDS), Function.identity())).thenApply(response -> {
             long l2 = System.currentTimeMillis() - l2;
             VoxLinkMod.LOGGER.debug("[SignalingClient] POST {} completed in {}ms, status={}", new Object[]{string2, l2, response.statusCode});
             int n = response.statusCode;
@@ -521,7 +521,7 @@ public class SignalingClient {
         String string2 = string.startsWith("http") ? string : this.getRpcBaseUrl() + string;
         VoxLinkMod.LOGGER.debug("[SignalingClient] GET {}", (Object)string2);
         long l2 = System.currentTimeMillis();
-        return ((CompletableFuture)((CompletableFuture)Http8.getAsync(string2, "Mozilla/5.0 (Java) VoxLink/1.1.6", l).applyToEither((CompletionStage)SignalingClient.delayedFail(l, TimeUnit.MILLISECONDS), Function.identity())).thenApply(response -> {
+        return ((CompletableFuture)((CompletableFuture)Http8.getAsync(string2, "Mozilla/5.0 (Java) VoxLink/1.1.9", l).applyToEither((CompletionStage)SignalingClient.delayedFail(l, TimeUnit.MILLISECONDS), Function.identity())).thenApply(response -> {
             long l2 = System.currentTimeMillis() - l2;
             VoxLinkMod.LOGGER.debug("[SignalingClient] GET {} completed in {}ms, status={}", new Object[]{string2, l2, response.statusCode});
             int n = response.statusCode;

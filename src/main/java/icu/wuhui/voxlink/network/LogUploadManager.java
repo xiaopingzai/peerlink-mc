@@ -377,7 +377,7 @@ public final class LogUploadManager {
 
     private static CompletableFuture<Http8.Response> postJson(String string, JsonObject jsonObject) {
         String string2 = LogUploadManager.buildUrl(string);
-        String string3 = "Mozilla/5.0 (Java) VoxLink/1.1.6";
+        String string3 = "Mozilla/5.0 (Java) VoxLink/1.1.9";
         return Http8.postAsync(string2, jsonObject, string3, LogUploadManager.timeoutMs());
     }
 
@@ -388,13 +388,13 @@ public final class LogUploadManager {
         String string5 = Minecraft.func_71410_x().func_110432_I().func_111285_a();
         HashMap<String, String> hashMap = new HashMap<String, String>();
         hashMap.put("Content-Type", "application/octet-stream");
-        hashMap.put("User-Agent", "Mozilla/5.0 (Java) VoxLink/1.1.6");
-        hashMap.put("X-VoxLink-Version", "1.1.8");
+        hashMap.put("User-Agent", "Mozilla/5.0 (Java) VoxLink/1.1.9");
+        hashMap.put("X-VoxLink-Version", "1.1.9");
         hashMap.put("X-Log-Sha256", string4);
         hashMap.put("X-Log-Role", role);
         hashMap.put("X-Log-Code", string2);
         hashMap.put("X-Log-Name", string5 == null ? "" : string5);
-        hashMap.put("X-Log-Version", "1.1.8");
+        hashMap.put("X-Log-Version", "1.1.9");
         hashMap.put("X-Log-Duration-Ms", String.valueOf(l));
         return Http8.postBytesAsync(string3, byArray, hashMap, LogUploadManager.timeoutMs()).thenApply(LogUploadManager::parseResponse);
     }

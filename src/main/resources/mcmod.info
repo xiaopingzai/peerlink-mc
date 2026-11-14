@@ -3,7 +3,7 @@
     "modid": "voxlink",
     "name": "VoxLink CV",
     "description": "VoxLink Cross-Version P2P with built-in ViaForge.",
-    "version": "1.1.8-1",
+    "version": "1.1.9",
     "mcversion": "1.12.2",
     "authors": ["VoxLink", "ViaVersion"],
     "dependencies": []
