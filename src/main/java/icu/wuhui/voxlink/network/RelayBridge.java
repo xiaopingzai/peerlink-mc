@@ -72,8 +72,8 @@ public class RelayBridge {
             } else {
                 relaySession.startForwarding();
                 LOGGER.info("[Relay] Relay started: {} (A={}, B={})", new Object[]{string3, string, string2});
-                Minecraft minecraft = Minecraft.func_71410_x();
-                if (minecraft.field_71439_g != null) {
+                Minecraft minecraft = Minecraft.getMinecraft();
+                if (minecraft.player != null) {
                     VoxLinkChat.print((ITextComponent)new TextComponentString("voxlink.relay.started"));
                 }
                 if (this.running.compareAndSet(false, true)) {

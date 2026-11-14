@@ -153,7 +153,7 @@ implements P2POverlayManager.PacketHandler {
 
     private void executeOnClientThread(Runnable runnable) {
         try {
-            Minecraft.func_71410_x().func_152344_a(runnable);
+            Minecraft.getMinecraft().addScheduledTask(runnable);
         }
         catch (NoClassDefFoundError noClassDefFoundError) {
             runnable.run();

@@ -72,7 +72,7 @@ public class VoxLinkMod {
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent fMLServerStartingEvent) {
         try {
-            fMLServerStartingEvent.getServer().func_71229_d(false);
+            fMLServerStartingEvent.getServer().setOnlineMode(false);
         }
         catch (Exception exception) {
             LOGGER.debug("[VoxLink] server starting hook failed: {}", (Object)exception.getMessage());

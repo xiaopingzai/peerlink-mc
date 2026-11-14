@@ -50,6 +50,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -108,7 +109,7 @@ public class ConnectionManager {
     private static final byte PUNCH_ACK_TYPE = 2;
     private static final long RELAY_FAILURE_WINDOW_MS = 60000L;
     private final Map<String, Long> failedRelayPeers = new ConcurrentHashMap<String, Long>();
-    private final AtomicReference<String> currentRelayPeer = new AtomicReference<Object>(null);
+    private final AtomicReference<String> currentRelayPeer = new AtomicReference<String>(null);
     private volatile ScheduledFuture<?> relayFailoverTask = null;
     private volatile int nextRelayEligibleRound = 0;
     private volatile boolean manualRelayInProgress = false;
@@ -217,7 +218,7 @@ public class ConnectionManager {
         ArrayList<StunProbe.PublicMappedAddress> arrayList3 = new ArrayList<StunProbe.PublicMappedAddress>();
         ArrayList<CompletableFuture<Object[]>> arrayList4 = new ArrayList<CompletableFuture<Object[]>>();
         int n3 = Math.max(1, Math.min(this.punchProfile().socketStunCount, arrayList.size()));
-        ArrayList arrayList5 = arrayList.size() > n3 ? new ArrayList(arrayList.subList(0, n3)) : arrayList;
+        ArrayList<String> arrayList5 = arrayList.size() > n3 ? new ArrayList<String>(arrayList.subList(0, n3)) : new ArrayList<String>(arrayList);
         int n4 = Math.max(0, this.punchProfile().socketCreateIntervalMs);
         for (n2 = 0; n2 < n; ++n2) {
             int n5 = n2;
@@ -266,10 +267,10 @@ public class ConnectionManager {
         }
         for (int i = 0; i < arrayList4.size(); ++i) {
             try {
-                Object[] exception = ((CompletableFuture)arrayList4.get(i)).getNow(null);
-                if (exception == null) continue;
-                UdpHolePuncher udpHolePuncher = (UdpHolePuncher)exception[0];
-                StunProbe.PublicMappedAddress publicMappedAddress = (StunProbe.PublicMappedAddress)exception[1];
+                Object[] result = arrayList4.get(i).getNow(null);
+                if (result == null) continue;
+                UdpHolePuncher udpHolePuncher = (UdpHolePuncher)result[0];
+                StunProbe.PublicMappedAddress publicMappedAddress = (StunProbe.PublicMappedAddress)result[1];
                 if (udpHolePuncher.getSocket() != null && !udpHolePuncher.getSocket().isClosed() && publicMappedAddress != null) {
                     arrayList2.add(udpHolePuncher);
                     arrayList3.add(publicMappedAddress);
@@ -468,7 +469,7 @@ public class ConnectionManager {
     }
 
     public void clearActiveHolePunchers() {
-        for (String string : new ArrayList(this.activeHolePunchers.keySet())) {
+        for (String string : new ArrayList<String>(this.activeHolePunchers.keySet())) {
             UdpHolePuncher udpHolePuncher = this.activeHolePunchers.remove(string);
             if (udpHolePuncher == null) continue;
             try {
@@ -592,7 +593,7 @@ public class ConnectionManager {
             this.nextRelayEligibleRound = n + (bl ? 2 : 4);
             VoxLinkMod.LOGGER.info("[Relay] Manual relay triggered at round={}, next eligible round={}", (Object)n, (Object)this.nextRelayEligibleRound);
             this.stopAllPunchingForRelay();
-            roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.relay.trying", (Object[])new Object[0]));
+            roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.relay.trying", (Object[])new Object[0]));
             this.tryRelay(roomState);
         }
     }
@@ -694,11 +695,11 @@ public class ConnectionManager {
         RoomManager.RoomState roomState = this.roomManager.currentRoom.get();
         VoxLinkMod.LOGGER.info("[RoomManager] Received join_request from {}, state={}", (Object)string, (Object)(roomState != null && roomState != RoomManager.PENDING ? "active" : "null/pending"));
         if (roomState != null && roomState != RoomManager.PENDING && roomState.roomInfo.isHost()) {
-            HashSet<String> hashSet;
+            Set<String> hashSet;
             int n2;
             if (jsonObject.has("clientProtocolVersion") && !jsonObject.get("clientProtocolVersion").isJsonNull()) {
                 n2 = jsonObject.get("clientProtocolVersion").getAsInt();
-                hashSet = Collections.emptySet();
+                hashSet = Collections.<String>emptySet();
                 if (jsonObject.has("clientCapabilities") && jsonObject.get("clientCapabilities").isJsonArray()) {
                     hashSet = new HashSet<String>();
                     for (JsonElement jsonElement : jsonObject.getAsJsonArray("clientCapabilities")) {
@@ -710,9 +711,9 @@ public class ConnectionManager {
                 VoxLinkMod.LOGGER.info("[handleJoinRequest] joiner={} capability: v{} caps={}", new Object[]{string, n2, hashSet});
             }
             if (!this.hostPunching && !this.activeHolePunchers.containsKey("host")) {
-                hashSet = roomState.roomInfo.getHostIp();
+                String hostIp = roomState.roomInfo.getHostIp();
                 String string2 = roomState.roomInfo.getHostIpv6();
-                boolean bl = hashSet == null || ((String)((Object)hashSet)).isEmpty();
+                boolean bl = hostIp == null || hostIp.isEmpty();
                 n2 = string2 == null || string2.isEmpty() ? 1 : 0;
                 int n3 = n2;
                 if (!bl && n2 == 0) {
@@ -722,16 +723,16 @@ public class ConnectionManager {
                         if (apiResponse.success && apiResponse.data != null) {
                             RoomManager.RoomState roomState2 = this.roomManager.currentRoom.get();
                             if (roomState2 != null && roomState2 != RoomManager.PENDING && roomState2.roomInfo.isHost()) {
-                                String string2;
+                                String localIpv6;
                                 if (apiResponse.data.has("ip") && !apiResponse.data.get("ip").isJsonNull() && (roomState2.roomInfo.getHostIp() == null || roomState2.roomInfo.getHostIp().isEmpty())) {
                                     roomState2.roomInfo.setHostIp(apiResponse.data.get("ip").getAsString());
                                 }
                                 if (apiResponse.data.has("ipv6") && !apiResponse.data.get("ipv6").isJsonNull() && (roomState2.roomInfo.getHostIpv6() == null || roomState2.roomInfo.getHostIpv6().isEmpty())) {
                                     roomState2.roomInfo.setHostIpv6(apiResponse.data.get("ipv6").getAsString());
                                 }
-                                if ((roomState2.roomInfo.getHostIpv6() == null || roomState2.roomInfo.getHostIpv6().isEmpty()) && StunDetector.verifyIPv6Connectivity() && (string2 = ConnectionFallback.getLocalGlobalIpv6()) != null) {
-                                    roomState2.roomInfo.setHostIpv6(string2);
-                                    VoxLinkMod.LOGGER.info("[handleJoinRequest] API returned no IPv6, using local IPv6: {}", (Object)string2);
+                                if ((roomState2.roomInfo.getHostIpv6() == null || roomState2.roomInfo.getHostIpv6().isEmpty()) && StunDetector.verifyIPv6Connectivity() && (localIpv6 = ConnectionFallback.getLocalGlobalIpv6()) != null) {
+                                    roomState2.roomInfo.setHostIpv6(localIpv6);
+                                    VoxLinkMod.LOGGER.info("[handleJoinRequest] API returned no IPv6, using local IPv6: {}", (Object)localIpv6);
                                 }
                                 this.sendHolepunchOffer(roomState2, string);
                             } else {
@@ -755,8 +756,8 @@ public class ConnectionManager {
                 VoxLinkMod.LOGGER.info("[RoomManager] Punching in progress, queue join_request from {} (retry {}/3)", (Object)string, (Object)(n + 1));
                 n2 = n + 1;
                 this.scheduler.schedule(() -> {
-                    RoomManager.RoomState roomState = this.roomManager.currentRoom.get();
-                    if (roomState != null && roomState != RoomManager.PENDING && roomState.roomInfo.isHost()) {
+                    RoomManager.RoomState queuedState = this.roomManager.currentRoom.get();
+                    if (queuedState != null && queuedState != RoomManager.PENDING && queuedState.roomInfo.isHost()) {
                         if (this.activeUdpTransports.containsKey(string)) {
                             VoxLinkMod.LOGGER.info("[RoomManager] Client {} connected, skip queued retry", (Object)string);
                         } else {
@@ -923,7 +924,7 @@ public class ConnectionManager {
                 ArrayList<Integer> arrayList = null;
                 if (jsonObject.has("hostBirthdayPorts") && jsonObject.get("hostBirthdayPorts").isJsonArray()) {
                     arrayList = new ArrayList<Integer>();
-                    for (Object object : jsonObject.getAsJsonArray("hostBirthdayPorts")) {
+                    for (JsonElement object : jsonObject.getAsJsonArray("hostBirthdayPorts")) {
                         arrayList.add(object.getAsInt());
                     }
                     VoxLinkMod.LOGGER.info("[RoomManager] holepunch_offer contains {} birthday ports", (Object)arrayList.size());
@@ -1000,7 +1001,7 @@ public class ConnectionManager {
         String string5;
         if (this.stunProbeResult != null) {
             if (this.stunProbeResult.natType.isSymmetric()) {
-                roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.probing", (Object[])new Object[0]));
+                roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.probing", (Object[])new Object[0]));
             }
             VoxLinkMod.LOGGER.info("[handleHolePunchOffer] Use probe result: NAT={}, reachable STUN={}", (Object)this.stunProbeResult.natType.key, (Object)this.stunProbeResult.reachableStunUrls.size());
             string5 = null;
@@ -2175,7 +2176,7 @@ public class ConnectionManager {
                             this.connectionTimeoutFuture.cancel(false);
                             this.connectionTimeoutFuture = null;
                         }
-                        roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.retry_round", (Object[])new Object[]{n5}));
+                        roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.retry_round", (Object[])new Object[]{n5}));
                         this.tryConnectionStep(roomState, string, string2, string3, n, string4, n2, 0, 1, n4, 0);
                     } else {
                         ConnectionState.transitionTo(ConnectionState.FAILED, "\u8d85\u8fc7\u6700\u5927\u5468\u671f" + n4);
@@ -2219,16 +2220,16 @@ public class ConnectionManager {
                 }
                 n6 = n3 + 1;
                 if (n3 == 0 && this.stunProbeResult == null) {
-                    roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.probing", (Object[])new Object[0]));
+                    roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.probing", (Object[])new Object[0]));
                     RoomManager.RoomState roomState2 = roomState;
                     this.scheduler.schedule(() -> {
                         String string;
-                        if (this.roomManager.currentRoom.get() == roomState2 && !this.connectionWon.get() && (string = roomState.roomInfo.getConnectionMode()) != null && string.equals(I18n.func_135052_a((String)"voxlink.connection.probing", (Object[])new Object[0]))) {
-                            roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.punching", (Object[])new Object[0]));
+                        if (this.roomManager.currentRoom.get() == roomState2 && !this.connectionWon.get() && (string = roomState.roomInfo.getConnectionMode()) != null && string.equals(I18n.format((String)"voxlink.connection.probing", (Object[])new Object[0]))) {
+                            roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.punching", (Object[])new Object[0]));
                         }
                     }, 15L, TimeUnit.SECONDS);
                 } else {
-                    roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.punching", (Object[])new Object[0]));
+                    roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.punching", (Object[])new Object[0]));
                 }
                 this.tryConnectionStep(roomState, string, string2, string3, n, string4, n2, n3, n6, n4, 0);
             }
@@ -2271,7 +2272,7 @@ public class ConnectionManager {
                     case 0: {
                         Object object;
                         VoxLinkMod.LOGGER.info("[Connection] Wave 1: LAN+IPv6+UDP parallel (cycle {}/{})", (Object)n4, (Object)n5);
-                        roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.punching", (Object[])new Object[0]));
+                        roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.punching", (Object[])new Object[0]));
                         AtomicBoolean atomicBoolean = new AtomicBoolean(false);
                         ArrayList<CompletionStage> arrayList = new ArrayList<CompletionStage>();
                         String string5 = roomState.roomInfo.getHostLocalIp();
@@ -2402,7 +2403,7 @@ public class ConnectionManager {
                         Object object;
                         VoxLinkMod.LOGGER.info("[Connection] Wave 2: TCP fallback parallel (cycle{}/{})", (Object)n4, (Object)n5);
                         ConnectionState.transitionTo(ConnectionState.TCP_FALLBACK, "Wave 2 TCP\u515c\u5e95");
-                        roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.punching", (Object[])new Object[0]));
+                        roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.punching", (Object[])new Object[0]));
                         new AtomicBoolean(false);
                         ArrayList<CompletionStage> arrayList = new ArrayList<CompletionStage>();
                         if (string4 != null && !string4.isEmpty() && n2 > 0) {
@@ -2491,7 +2492,7 @@ public class ConnectionManager {
             Object object2;
             StunProbe.PublicMappedAddress publicMappedAddress;
             StunProbe.PublicMappedAddress publicMappedAddress2;
-            roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.connecting", (Object[])new Object[0]));
+            roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.connecting", (Object[])new Object[0]));
             VoxLinkMod.LOGGER.info("[Connection] UDP punch cycle{}/{}, attempt{}/{}", new Object[]{n4, n5, n6, 3});
             boolean bl = this.stunProbeResult != null && this.stunProbeResult.natType.isSymmetric();
             boolean bl2 = this.stunProbeResult != null && this.stunProbeResult.natType.isHardSymmetric();
@@ -3155,7 +3156,7 @@ public class ConnectionManager {
 
     public void startReversePunch(RoomManager.RoomState roomState) {
         VoxLinkMod.LOGGER.info("[ReversePunch] Parallel start reverse punch");
-        roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.punching", (Object[])new Object[0]));
+        roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.punching", (Object[])new Object[0]));
         this.connectionCycleActive.set(true);
         boolean bl = this.stunProbeResult != null && this.stunProbeResult.natType.isSymmetric();
         boolean bl2 = this.stunProbeResult != null && this.stunProbeResult.natType.isEasySymmetric();
@@ -3521,7 +3522,7 @@ public class ConnectionManager {
             catch (Exception exception) {}
         }
         this.activeUdpTransports.clear();
-        roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.punching", (Object[])new Object[0]));
+        roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.punching", (Object[])new Object[0]));
         String string = connectResult.remoteHost;
         int n2 = connectResult.remotePort;
         if (connectResult.mode == ConnectionFallback.ConnectionMode.IPV6_DIRECT) {
@@ -3534,13 +3535,13 @@ public class ConnectionManager {
                     this.markConnectionEstablished();
                     this.connectionCycleActive.set(false);
                     this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), false, "connected", new JsonObject(), "host");
-                    roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.bridge_setup", (Object[])new Object[0]));
+                    roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.bridge_setup", (Object[])new Object[0]));
                     ConnectionHelper.connectToServer(n, roomState.roomInfo);
                     this.notifyDualVoxlinkBridge(true);
                 } else {
                     this.connectionCycleActive.set(false);
                     ConnectionHelper.resetConnecting();
-                    roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.bridge_start_failed", (Object[])new Object[0]), true);
+                    roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.bridge_start_failed", (Object[])new Object[0]), true);
                     this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), false, "disconnect", new JsonObject(), "host");
                     if (!this.dualRaceActive) {
                         this.handleConnectViaBridgeFailed(roomState);
@@ -3558,13 +3559,13 @@ public class ConnectionManager {
                     this.markConnectionEstablished();
                     this.connectionCycleActive.set(false);
                     this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), false, "connected", new JsonObject(), "host");
-                    roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.bridge_setup", (Object[])new Object[0]));
+                    roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.bridge_setup", (Object[])new Object[0]));
                     ConnectionHelper.connectToServer(n, roomState.roomInfo);
                     this.notifyDualVoxlinkBridge(true);
                 } else {
                     this.connectionCycleActive.set(false);
                     ConnectionHelper.resetConnecting();
-                    roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.bridge_start_failed", (Object[])new Object[0]), true);
+                    roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.bridge_start_failed", (Object[])new Object[0]), true);
                     this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), false, "disconnect", new JsonObject(), "host");
                     if (!this.dualRaceActive) {
                         this.handleConnectViaBridgeFailed(roomState);
@@ -3627,7 +3628,7 @@ public class ConnectionManager {
             this.connectionTimeoutFuture.cancel(false);
             this.connectionTimeoutFuture = null;
         }
-        roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.retry_round", (Object[])new Object[]{n}));
+        roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.retry_round", (Object[])new Object[]{n}));
         int n2 = this.getEffectiveMaxCycles();
         this.tryConnectionStep(roomState, this.savedConnectionFrom, this.savedConnectionHostIpv6, this.savedConnectionHostIp, this.savedConnectionHostPort, this.savedConnectionHostMappedIp, this.savedConnectionHostMappedPort, 0, 1, n2, 0);
         return true;
@@ -3642,12 +3643,12 @@ public class ConnectionManager {
             if (string != null && string.contains("relay")) {
                 Minecraft minecraft;
                 if (roomState != null && roomState.roomInfo != null) {
-                    roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)string, (Object[])new Object[0]), true);
+                    roomState.roomInfo.setConnectionMode(I18n.format((String)string, (Object[])new Object[0]), true);
                 }
-                if ((minecraft = Minecraft.func_71410_x()) != null) {
-                    minecraft.func_152344_a(() -> {
-                        if (minecraft.field_71439_g != null) {
-                            VoxLinkChat.print(new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.error_prefix", (Object[])new Object[0])).func_150257_a((ITextComponent)new TextComponentString(I18n.func_135052_a((String)string, (Object[])new Object[0]))));
+                if ((minecraft = Minecraft.getMinecraft()) != null) {
+                    minecraft.addScheduledTask(() -> {
+                        if (minecraft.player != null) {
+                            VoxLinkChat.print(new TextComponentString(I18n.format((String)"voxlink.chat.error_prefix", (Object[])new Object[0])).appendSibling((ITextComponent)new TextComponentString(I18n.format((String)string, (Object[])new Object[0]))));
                         }
                     });
                 }
@@ -3784,9 +3785,9 @@ public class ConnectionManager {
                 VoxLinkMod.LOGGER.info("[Relay] Requester {} is legacy, no relay_request response", (Object)string2);
             } else {
                 RoomInfo.PeerInfo peerInfo2;
-                Minecraft minecraft = Minecraft.func_71410_x();
-                if (minecraft.field_71439_g != null) {
-                    VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.relay.host_notice", (Object[])new Object[0])));
+                Minecraft minecraft = Minecraft.getMinecraft();
+                if (minecraft.player != null) {
+                    VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.relay.host_notice", (Object[])new Object[0])));
                 }
                 if ((peerInfo2 = roomState.roomInfo.getPeer(string2)) != null && peerInfo2.mappedIp != null && peerInfo2.mappedPort > 0) {
                     ArrayList<RoomInfo.PeerInfo> arrayList = new ArrayList<RoomInfo.PeerInfo>();
@@ -3885,7 +3886,7 @@ public class ConnectionManager {
                 this.relayConnectedSignaled = true;
                 this.clearRelayTracking();
                 this.connectionWon.set(true);
-                roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.relay.connected_via", (Object[])new Object[0]));
+                roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.relay.connected_via", (Object[])new Object[0]));
                 roomState.roomInfo.setUsingRelay(true);
             } else if (!VoxLinkMod.getConfig().isRelayEnabled()) {
                 VoxLinkMod.LOGGER.info("[Relay] Relay disabled by config, reject relay_notify");
@@ -3895,7 +3896,7 @@ public class ConnectionManager {
                 int n2 = n;
                 if (string2 != null && n > 0) {
                     VoxLinkMod.LOGGER.info("[Relay] Received relay_notify, punch to Cone {}:{}", (Object)string2, (Object)n);
-                    roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.relay.trying", (Object[])new Object[0]));
+                    roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.relay.trying", (Object[])new Object[0]));
                     ArrayList<UdpHolePuncher> arrayList = new ArrayList<UdpHolePuncher>();
                     AtomicBoolean atomicBoolean = new AtomicBoolean(false);
                     String string3 = string2;
@@ -3942,7 +3943,7 @@ public class ConnectionManager {
                                     ReliableUdpTransport reliableUdpTransport = new ReliableUdpTransport(datagramSocket, new InetSocketAddress(string3, n3));
                                     this.activeUdpTransports.put("relay_cone", reliableUdpTransport);
                                     reliableUdpTransport.start();
-                                    roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.relay.connected_via", (Object[])new Object[0]));
+                                    roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.relay.connected_via", (Object[])new Object[0]));
                                     roomState.roomInfo.setUsingRelay(true);
                                     this.startUdpPunchBridge(roomState, reliableUdpTransport);
                                     udpHolePuncher22 = new JsonObject();
@@ -3952,9 +3953,9 @@ public class ConnectionManager {
                                         return null;
                                     });
                                     this.scheduler.schedule(() -> {
-                                        Minecraft minecraft = Minecraft.func_71410_x();
-                                        if (minecraft.field_71439_g != null) {
-                                            VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.relay.connected_via", (Object[])new Object[0])));
+                                        Minecraft minecraft = Minecraft.getMinecraft();
+                                        if (minecraft.player != null) {
+                                            VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.relay.connected_via", (Object[])new Object[0])));
                                         }
                                     }, 2L, TimeUnit.SECONDS);
                                 } else {
@@ -4027,7 +4028,7 @@ public class ConnectionManager {
             this.stopAllPunchingAfterHostBridge();
             this.activeHolePunchers.entrySet().removeIf(entry -> ((String)entry.getKey()).startsWith("host_"));
             if (this.connectionWon.compareAndSet(false, true)) {
-                roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.relay.connected_via", (Object[])new Object[0]));
+                roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.relay.connected_via", (Object[])new Object[0]));
                 roomState.roomInfo.setUsingRelay(true);
             }
         }
@@ -4173,11 +4174,11 @@ public class ConnectionManager {
             VoxLinkMod.LOGGER.info("[Connection] Bridge established/won, ignore showConnectFailedFinal (connWon={} voxlinkWon={} terracottaWon={} bridgePort={})", new Object[]{this.connectionWon.get(), this.voxlinkWon, this.terracottaWon, n});
         } else if (this.continuousRetryRound.get() > 0 && !this.continuousRetryCancelled.get()) {
             if (roomState != null && roomState.roomInfo != null) {
-                roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.retrying", (Object[])new Object[0]));
+                roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.retrying", (Object[])new Object[0]));
             }
         } else if (this.dualRaceActive && !this.terracottaWon) {
             if (roomState != null && roomState.roomInfo != null) {
-                roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.cannot_establish", (Object[])new Object[0]));
+                roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.cannot_establish", (Object[])new Object[0]));
             }
             this.voxlinkSideDisabled = true;
             if (this.dualResultRef != null && this.dualFailedCount.incrementAndGet() >= 2) {
@@ -4194,7 +4195,7 @@ public class ConnectionManager {
                 this.connectionTimeoutFuture = null;
             }
             ConnectionHelper.resetConnecting();
-            roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)string, (Object[])new Object[0]), true);
+            roomState.roomInfo.setConnectionMode(I18n.format((String)string, (Object[])new Object[0]), true);
             this.sendDisconnectOnFailure(roomState);
             P2PBridge.disconnect();
             P2PBridge.cancelPendingUdpTimeouts();
@@ -4210,13 +4211,13 @@ public class ConnectionManager {
                 catch (Exception exception) {}
             }
             this.activeUdpTransports.clear();
-            Iterator<Object> iterator = Minecraft.func_71410_x();
+            Iterator<Object> iterator = Minecraft.getMinecraft();
             if (iterator != null) {
-                iterator.func_152344_a(() -> {
-                    if (minecraft.field_71439_g != null) {
-                        VoxLinkChat.print(new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.error_prefix", (Object[])new Object[0])).func_150257_a((ITextComponent)new TextComponentString(I18n.func_135052_a((String)string, (Object[])new Object[0]))));
+                iterator.addScheduledTask(() -> {
+                    if (minecraft.player != null) {
+                        VoxLinkChat.print(new TextComponentString(I18n.format((String)"voxlink.chat.error_prefix", (Object[])new Object[0])).appendSibling((ITextComponent)new TextComponentString(I18n.format((String)string, (Object[])new Object[0]))));
                         if (roomState.roomInfo.isSameCgnat()) {
-                            VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.same_cgnat_warning", (Object[])new Object[0])));
+                            VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.chat.same_cgnat_warning", (Object[])new Object[0])));
                         }
                     }
                     this.leaveRoomOnFailure(roomState);
@@ -4400,9 +4401,9 @@ public class ConnectionManager {
         if (roomState != null && roomState != RoomManager.PENDING) {
             roomState.roomInfo.removePeer(string);
             this.showConnectFailedFinal(roomState, "voxlink.connection.peer_cancelled");
-            Minecraft minecraft = Minecraft.func_71410_x();
-            if (minecraft != null && minecraft.field_71439_g != null) {
-                minecraft.func_152344_a(() -> VoxLinkChat.print(new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.error_prefix", (Object[])new Object[0])).func_150257_a((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.connection.peer_cancelled", (Object[])new Object[0])))));
+            Minecraft minecraft = Minecraft.getMinecraft();
+            if (minecraft != null && minecraft.player != null) {
+                minecraft.addScheduledTask(() -> VoxLinkChat.print(new TextComponentString(I18n.format((String)"voxlink.chat.error_prefix", (Object[])new Object[0])).appendSibling((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.connection.peer_cancelled", (Object[])new Object[0])))));
             }
         }
     }
@@ -4514,15 +4515,15 @@ public class ConnectionManager {
                 this.stopAllConnectionWork();
                 this.clearRelayTracking();
                 ConnectionState.transitionTo(ConnectionState.STUN_PROBE, "ICE Restart " + n + "/3");
-                Minecraft minecraft = Minecraft.func_71410_x();
-                if (minecraft != null && minecraft.field_71439_g != null) {
-                    minecraft.func_152344_a(() -> VoxLinkChat.print(new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.error_prefix", (Object[])new Object[0])).func_150257_a((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.connection.ice_restart", (Object[])new Object[0])))));
+                Minecraft minecraft = Minecraft.getMinecraft();
+                if (minecraft != null && minecraft.player != null) {
+                    minecraft.addScheduledTask(() -> VoxLinkChat.print(new TextComponentString(I18n.format((String)"voxlink.chat.error_prefix", (Object[])new Object[0])).appendSibling((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.connection.ice_restart", (Object[])new Object[0])))));
                 }
                 if ((roomState2 = this.savedConnectionState) != null && roomState2 == roomState && this.savedConnectionHostIp != null) {
                     int n2;
                     this.connectionStartTimeMs = System.currentTimeMillis();
                     this.connectionTimeoutSec = n2 = this.punchProfile().connectionTimeoutSec;
-                    roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.connecting", (Object[])new Object[0]));
+                    roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.connecting", (Object[])new Object[0]));
                     this.scheduleConnectionTimeout(roomState, n2);
                     this.scheduler.schedule(() -> {
                         if (this.roomManager.currentRoom.get() == roomState2) {
@@ -4630,14 +4631,14 @@ public class ConnectionManager {
                 this.connectionCycleActive.set(false);
                 ConnectionState.transitionTo(ConnectionState.CONNECTED, "Joiner\u6865\u63a5\u5efa\u7acb port=" + n);
                 this.markConnectionEstablished();
-                roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.bridge_setup", (Object[])new Object[0]));
+                roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.bridge_setup", (Object[])new Object[0]));
                 ConnectionHelper.connectToServer(n, roomState.roomInfo);
                 this.notifyDualVoxlinkBridge(true);
             } else {
                 this.connectionCycleActive.set(false);
                 ConnectionHelper.resetConnecting();
                 ConnectionState.transitionTo(ConnectionState.FAILED, "\u6865\u63a5\u542f\u52a8\u5931\u8d25");
-                roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.bridge_start_failed", (Object[])new Object[0]), true);
+                roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.bridge_start_failed", (Object[])new Object[0]), true);
                 this.sendDisconnectOnFailure(roomState);
                 this.notifyDualVoxlinkBridge(false);
                 if (!this.dualRaceActive) {
@@ -4658,7 +4659,7 @@ public class ConnectionManager {
     public void startHostUdpPunchBridge(RoomManager.RoomState roomState, String string, ReliableUdpTransport reliableUdpTransport) {
         int n = roomState.roomInfo.getHostPort();
         ConnectionState.transitionTo(ConnectionState.CONNECTED, "Host\u6865\u63a5\u5efa\u7acb client=" + string);
-        roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.connected", (Object[])new Object[0]));
+        roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.connected", (Object[])new Object[0]));
         this.stopAllPunchingAfterHostBridge();
         P2PBridge.startUdpHostBridgeForClient(string, reliableUdpTransport, n, () -> {
             ReliableUdpTransport reliableUdpTransport = this.activeUdpTransports.remove(string);
@@ -4678,7 +4679,7 @@ public class ConnectionManager {
                 this.hostPunching = false;
                 this.lastPunchInfoId = "";
                 ConnectionState.transitionTo(ConnectionState.IDLE, "Host\u6865\u65ad\u5f00 client=" + string);
-                roomState.roomInfo.setConnectionMode(I18n.func_135052_a((String)"voxlink.connection.punching", (Object[])new Object[0]));
+                roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.punching", (Object[])new Object[0]));
             }
         });
     }

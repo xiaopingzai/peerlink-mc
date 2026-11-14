@@ -36,59 +36,59 @@ extends VoxLinkScreenBase {
     }
 
     @Override
-    public void func_73866_w_() {
-        super.func_73866_w_();
-        int n = this.field_146294_l / 2;
-        int n2 = this.field_146295_m / 2 - 40;
-        this.codeField = new GuiTextField(1, this.field_146289_q, n - 100, n2, 200, 20);
-        this.codeField.func_146203_f(16);
-        this.passwordField = new GuiTextField(2, this.field_146289_q, n - 100, n2 + 28, 200, 20);
-        this.passwordField.func_146203_f(32);
-        this.addButton(2, n - 100, n2 + 56, 200, 20, I18n.func_135052_a((String)"voxlink.gui.join", (Object[])new Object[0]));
+    public void initGui() {
+        super.initGui();
+        int n = this.width / 2;
+        int n2 = this.height / 2 - 40;
+        this.codeField = new GuiTextField(1, this.fontRenderer, n - 100, n2, 200, 20);
+        this.codeField.setMaxStringLength(16);
+        this.passwordField = new GuiTextField(2, this.fontRenderer, n - 100, n2 + 28, 200, 20);
+        this.passwordField.setMaxStringLength(32);
+        this.addButton(2, n - 100, n2 + 56, 200, 20, I18n.format((String)"voxlink.gui.join", (Object[])new Object[0]));
     }
 
     @Override
-    public void func_73863_a(int n, int n2, float f) {
-        super.func_73863_a(n, n2, f);
-        int n3 = this.field_146294_l / 2;
-        int n4 = this.field_146295_m / 2 - 64;
-        this.field_146289_q.func_78276_b(I18n.func_135052_a((String)"voxlink.gui.room_code", (Object[])new Object[0]), (this.field_146294_l - this.field_146289_q.func_78256_a(I18n.func_135052_a((String)"voxlink.gui.room_code", (Object[])new Object[0]))) / 2, n4, -5592406);
-        this.codeField.func_146194_f();
-        this.field_146289_q.func_78276_b(I18n.func_135052_a((String)"voxlink.gui.password_optional", (Object[])new Object[0]), (this.field_146294_l - this.field_146289_q.func_78256_a(I18n.func_135052_a((String)"voxlink.gui.password_optional", (Object[])new Object[0]))) / 2, n4 + 18, -5592406);
-        this.passwordField.func_146194_f();
+    public void drawScreen(int n, int n2, float f) {
+        super.drawScreen(n, n2, f);
+        int n3 = this.width / 2;
+        int n4 = this.height / 2 - 64;
+        this.fontRenderer.drawString(I18n.format((String)"voxlink.gui.room_code", (Object[])new Object[0]), (this.width - this.fontRenderer.getStringWidth(I18n.format((String)"voxlink.gui.room_code", (Object[])new Object[0]))) / 2, n4, -5592406);
+        this.codeField.drawTextBox();
+        this.fontRenderer.drawString(I18n.format((String)"voxlink.gui.password_optional", (Object[])new Object[0]), (this.width - this.fontRenderer.getStringWidth(I18n.format((String)"voxlink.gui.password_optional", (Object[])new Object[0]))) / 2, n4 + 18, -5592406);
+        this.passwordField.drawTextBox();
         if (this.joining) {
-            this.field_146289_q.func_78276_b(I18n.func_135052_a((String)"voxlink.joining.joining", (Object[])new Object[0]), (this.field_146294_l - this.field_146289_q.func_78256_a(I18n.func_135052_a((String)"voxlink.joining.joining", (Object[])new Object[0]))) / 2, n4 + 66, -5592406);
+            this.fontRenderer.drawString(I18n.format((String)"voxlink.joining.joining", (Object[])new Object[0]), (this.width - this.fontRenderer.getStringWidth(I18n.format((String)"voxlink.joining.joining", (Object[])new Object[0]))) / 2, n4 + 66, -5592406);
         }
     }
 
-    protected void func_73869_a(char c, int n) {
-        if (this.codeField.func_146201_a(c, n) || this.passwordField.func_146201_a(c, n)) {
+    protected void keyTyped(char c, int n) {
+        if (this.codeField.textboxKeyTyped(c, n) || this.passwordField.textboxKeyTyped(c, n)) {
             return;
         }
         if (n == 28) {
             this.onJoin();
             return;
         }
-        super.func_73869_a(c, n);
+        super.keyTyped(c, n);
     }
 
-    protected void func_73864_a(int n, int n2, int n3) {
-        super.func_73864_a(n, n2, n3);
+    protected void mouseClicked(int n, int n2, int n3) {
+        super.mouseClicked(n, n2, n3);
         JoinRoomScreen.handleFieldClick(this.codeField, n, n2);
         JoinRoomScreen.handleFieldClick(this.passwordField, n, n2);
     }
 
     private static void handleFieldClick(GuiTextField guiTextField, int n, int n2) {
-        boolean bl = n >= guiTextField.field_146209_f && n < guiTextField.field_146209_f + guiTextField.func_146200_o() && n2 >= guiTextField.field_146210_g && n2 < guiTextField.field_146210_g + 12;
-        guiTextField.func_146195_b(bl);
+        boolean bl = n >= guiTextField.x && n < guiTextField.x + guiTextField.getWidth() && n2 >= guiTextField.y && n2 < guiTextField.y + 12;
+        guiTextField.setFocused(bl);
     }
 
     @Override
-    protected void func_146284_a(GuiButton guiButton) {
-        if (guiButton.field_146127_k == 2) {
+    protected void actionPerformed(GuiButton guiButton) {
+        if (guiButton.id == 2) {
             this.onJoin();
         } else {
-            super.func_146284_a(guiButton);
+            super.actionPerformed(guiButton);
         }
     }
 
@@ -96,28 +96,28 @@ extends VoxLinkScreenBase {
         if (this.joining) {
             return;
         }
-        String string = this.codeField.func_146179_b().trim().toUpperCase();
+        String string = this.codeField.getText().trim().toUpperCase();
         if (string.isEmpty()) {
-            VoxLinkChat.print(I18n.func_135052_a((String)"voxlink.error.invalid_room_code", (Object[])new Object[0]));
+            VoxLinkChat.print(I18n.format((String)"voxlink.error.invalid_room_code", (Object[])new Object[0]));
             return;
         }
         this.joining = true;
         RoomManager roomManager = VoxLinkMod.getRoomManager();
         if (roomManager == null) {
-            VoxLinkChat.print(I18n.func_135052_a((String)"voxlink.error.not_initialized", (Object[])new Object[0]));
+            VoxLinkChat.print(I18n.format((String)"voxlink.error.not_initialized", (Object[])new Object[0]));
             this.joining = false;
             return;
         }
-        String string2 = this.passwordField.func_146179_b();
+        String string2 = this.passwordField.getText();
         roomManager.joinRoom(string, string2).whenComplete((roomInfo, throwable) -> {
-            Minecraft minecraft = Minecraft.func_71410_x();
-            minecraft.func_152344_a(() -> {
+            Minecraft minecraft = Minecraft.getMinecraft();
+            minecraft.addScheduledTask(() -> {
                 if (throwable != null) {
                     this.joining = false;
-                    VoxLinkChat.print(I18n.func_135052_a((String)"voxlink.join.failed", (Object[])new Object[]{throwable.getMessage()}));
+                    VoxLinkChat.print(I18n.format((String)"voxlink.join.failed", (Object[])new Object[]{throwable.getMessage()}));
                     return;
                 }
-                minecraft.func_147108_a((GuiScreen)new AttemptingJoinScreen((GuiScreen)(this.parentScreen != null ? this.parentScreen : this), (RoomInfo)roomInfo));
+                minecraft.displayGuiScreen((GuiScreen)new AttemptingJoinScreen((GuiScreen)(this.parentScreen != null ? this.parentScreen : this), (RoomInfo)roomInfo));
             });
         });
     }
@@ -125,15 +125,15 @@ extends VoxLinkScreenBase {
     @Override
     protected void actionPerformedBack() {
         if (this.parentScreen != null) {
-            Minecraft.func_71410_x().func_147108_a(this.parentScreen);
+            Minecraft.getMinecraft().displayGuiScreen(this.parentScreen);
         } else {
-            Minecraft.func_71410_x().func_147108_a((GuiScreen)null);
+            Minecraft.getMinecraft().displayGuiScreen((GuiScreen)null);
         }
     }
 
-    public void func_73876_c() {
-        this.codeField.func_146178_a();
-        this.passwordField.func_146178_a();
+    public void updateScreen() {
+        this.codeField.updateCursorCounter();
+        this.passwordField.updateCursorCounter();
     }
 }
 

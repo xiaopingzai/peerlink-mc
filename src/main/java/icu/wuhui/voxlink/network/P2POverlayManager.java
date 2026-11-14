@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -53,9 +54,9 @@ public class P2POverlayManager {
     private DatagramSocket socket;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicReference<Role> role = new AtomicReference<Role>(Role.NONE);
-    private final AtomicReference<InetSocketAddress> upstreamAddr = new AtomicReference<Object>(null);
+    private final AtomicReference<InetSocketAddress> upstreamAddr = new AtomicReference<InetSocketAddress>(null);
     private volatile String upstreamId;
-    private final AtomicReference<InetSocketAddress> downstreamAddr = new AtomicReference<Object>(null);
+    private final AtomicReference<InetSocketAddress> downstreamAddr = new AtomicReference<InetSocketAddress>(null);
     private volatile String downstreamId;
     private String nodeId;
     private final int localPort;
@@ -66,8 +67,8 @@ public class P2POverlayManager {
     private volatile PacketHandler handler;
     private final AtomicInteger upstreamLatency = new AtomicInteger(-1);
     private final AtomicInteger downstreamLatency = new AtomicInteger(-1);
-    private final AtomicReference<PendingPing> pendingUpstreamPing = new AtomicReference<Object>(null);
-    private final AtomicReference<PendingPing> pendingDownstreamPing = new AtomicReference<Object>(null);
+    private final AtomicReference<PendingPing> pendingUpstreamPing = new AtomicReference<PendingPing>(null);
+    private final AtomicReference<PendingPing> pendingDownstreamPing = new AtomicReference<PendingPing>(null);
     private final AtomicInteger upstreamPingFailures = new AtomicInteger(0);
     private final AtomicInteger downstreamPingFailures = new AtomicInteger(0);
 
@@ -351,21 +352,20 @@ public class P2POverlayManager {
         int n = jsonObject.has("seq") ? jsonObject.get("seq").getAsInt() : 0;
         String string3 = string2 + ":" + n;
         if (this.seenSeq.putIfAbsent(string3, System.currentTimeMillis()) == null) {
-            Serializable serializable;
             JsonObject jsonObject2;
             if (this.seenSeq.size() > 1000) {
                 long l = System.currentTimeMillis() - 60000L;
-                jsonObject2 = this.seenSeq.entrySet().iterator();
-                while (jsonObject2.hasNext() && this.seenSeq.size() > 1000) {
-                    if (jsonObject2.next().getValue() >= l) continue;
-                    jsonObject2.remove();
+                Iterator<Map.Entry<String, Long>> iter = this.seenSeq.entrySet().iterator();
+                while (iter.hasNext() && this.seenSeq.size() > 1000) {
+                    if (iter.next().getValue() >= l) continue;
+                    iter.remove();
                 }
                 if (this.seenSeq.size() > 1000) {
-                    serializable = new ArrayList<Map.Entry<String, Long>>(this.seenSeq.entrySet());
-                    ((ArrayList)serializable).sort(Comparator.comparingLong(Map.Entry::getValue));
+                    ArrayList<Map.Entry<String, Long>> sorted = new ArrayList<Map.Entry<String, Long>>(this.seenSeq.entrySet());
+                    sorted.sort(Comparator.comparingLong(Map.Entry::getValue));
                     int n2 = this.seenSeq.size() - 1000;
                     for (int i = 0; i < n2; ++i) {
-                        this.seenSeq.remove(((ArrayList)serializable).get(i).getKey());
+                        this.seenSeq.remove(sorted.get(i).getKey());
                     }
                 }
             }
@@ -382,9 +382,9 @@ public class P2POverlayManager {
                 } else if ("downstream".equals(string)) {
                     this.forwardToUpstream(jsonObject);
                 } else {
-                    serializable = this.upstreamAddr.get();
+                    InetSocketAddress upstream = this.upstreamAddr.get();
                     InetSocketAddress inetSocketAddress2 = this.downstreamAddr.get();
-                    if (serializable != null && ((InetSocketAddress)serializable).equals(inetSocketAddress)) {
+                    if (upstream != null && upstream.equals(inetSocketAddress)) {
                         this.forwardToDownstream(jsonObject);
                     } else if (inetSocketAddress2 != null && inetSocketAddress2.equals(inetSocketAddress)) {
                         this.forwardToUpstream(jsonObject);

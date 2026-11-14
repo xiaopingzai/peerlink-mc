@@ -912,24 +912,24 @@ public class P2PBridge {
             running.set(true);
             if (n <= 0) {
                 try {
-                    IntegratedServer integratedServer = Minecraft.func_71410_x().func_71401_C();
+                    IntegratedServer integratedServer = Minecraft.getMinecraft().getIntegratedServer();
                     LOGGER.info("Bridge port probe: integrated server={}", (Object)integratedServer);
                     if (integratedServer == null) break block8;
                     try {
-                        Method method = MinecraftServer.class.getMethod("func_71215_F", new Class[0]);
+                        Method method = MinecraftServer.class.getMethod("getServerPort", new Class[0]);
                         n = (Integer)method.invoke(integratedServer, new Object[0]);
-                        LOGGER.info("Bridge port probe: func_71215_F returned {}", (Object)n);
+                        LOGGER.info("Bridge port probe: getServerPort returned {}", (Object)n);
                     }
                     catch (Exception exception) {
-                        LOGGER.warn("Bridge port probe: func_71215_F failed: {}", (Object)exception.toString());
+                        LOGGER.warn("Bridge port probe: getServerPort failed: {}", (Object)exception.toString());
                         try {
-                            Field field = MinecraftServer.class.getDeclaredField("field_71319_s");
+                            Field field = MinecraftServer.class.getDeclaredField("serverPort");
                             field.setAccessible(true);
                             n = field.getInt(integratedServer);
-                            LOGGER.info("Bridge port probe: field_71319_s = {}", (Object)n);
+                            LOGGER.info("Bridge port probe: serverPort = {}", (Object)n);
                         }
                         catch (Exception exception2) {
-                            LOGGER.warn("Bridge port probe: field_71319_s failed: {}", (Object)exception2.toString());
+                            LOGGER.warn("Bridge port probe: serverPort failed: {}", (Object)exception2.toString());
                         }
                     }
                 }

@@ -19,11 +19,11 @@ public final class VoxLinkChat {
             return;
         }
         try {
-            Minecraft minecraft = Minecraft.func_71410_x();
-            if (minecraft == null || minecraft.field_71456_v == null) {
+            Minecraft minecraft = Minecraft.getMinecraft();
+            if (minecraft == null || minecraft.ingameGUI == null) {
                 return;
             }
-            minecraft.field_71456_v.func_146158_b().func_146227_a(iTextComponent);
+            minecraft.ingameGUI.getChatGUI().printChatMessage(iTextComponent);
         }
         catch (Exception exception) {
             VoxLinkMod.LOGGER.debug("[VoxLinkChat] display failed: {}", (Object)exception.getMessage());

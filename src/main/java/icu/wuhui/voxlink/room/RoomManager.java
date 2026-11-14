@@ -75,7 +75,7 @@ public class RoomManager {
     private final TopologyClient topologyClient;
     private final ScheduledExecutorService scheduler;
     private final ConnectionManager connectionManager;
-    final AtomicReference<RoomState> currentRoom = new AtomicReference<Object>(null);
+    final AtomicReference<RoomState> currentRoom = new AtomicReference<RoomState>(null);
     private volatile ScheduledFuture<?> heartbeatFuture;
     private volatile ScheduledFuture<?> signalPollFuture;
     private final AtomicBoolean signalPollInFlight = new AtomicBoolean(false);
@@ -165,57 +165,55 @@ public class RoomManager {
         return completableFuture;
     }
 
-    public CompletableFuture<RoomInfo> createRoom(String string, String string2, int n, int n2, boolean bl, String string3, String string4) {
+    public CompletableFuture<RoomInfo> createRoom(String name, String password, int maxPlayers, int port, boolean visible, String authType, String category) {
         if (!this.currentRoom.compareAndSet(null, PENDING)) {
-            return RoomManager.failedFuture(new IllegalStateException(I18n.func_135052_a((String)"voxlink.error.already_in_room_or_pending", (Object[])new Object[0])));
+            return RoomManager.failedFuture(new IllegalStateException(I18n.format((String)"voxlink.error.already_in_room_or_pending", (Object[])new Object[0])));
         }
-        int n3 = PeerServer.getPort();
+        int peerPort = PeerServer.getPort();
         VoxLinkMod.LOGGER.info("[createRoom] Instant create (NAT probe deferred)");
-        CompletableFuture<NatResult> completableFuture = CompletableFuture.completedFuture(new NatResult("unknown", n2, -1));
+        CompletableFuture<NatResult> initialNat = CompletableFuture.completedFuture(new NatResult("unknown", port, -1));
         CompletableFuture.runAsync(() -> {
             try {
-                Object object;
                 VoxLinkMod.LOGGER.info("[createRoom] Background NAT probe started");
-                String string = "unknown";
-                int n2 = n2;
-                int n3 = -1;
+                String natType = "unknown";
+                int probePort = port;
                 if (VoxLinkMod.getConfig().isAutoUPnP()) {
                     // empty if block
                 }
-                if ("unknown".equals(string) || "strict".equals(string)) {
+                if ("unknown".equals(natType) || "strict".equals(natType)) {
                     try {
-                        object = StunProbe.probeAsync(StunDetector.getStunServerGroups()).join();
-                        if (object != null && ((StunProbe.ProbeResult)object).natType != null) {
-                            string = ((StunProbe.ProbeResult)object).natType.key;
-                            this.connectionManager.setStunProbeResult((StunProbe.ProbeResult)object);
-                            VoxLinkMod.LOGGER.info("[createRoom] STUN probe result saved: NAT={}, reachable={}", (Object)string, (Object)((StunProbe.ProbeResult)object).reachableStunUrls.size());
+                        StunProbe.ProbeResult probeResult = StunProbe.probeAsync(StunDetector.getStunServerGroups()).join();
+                        if (probeResult != null && probeResult.natType != null) {
+                            natType = probeResult.natType.key;
+                            this.connectionManager.setStunProbeResult(probeResult);
+                            VoxLinkMod.LOGGER.info("[createRoom] STUN probe result saved: NAT={}, reachable={}", (Object)natType, (Object)probeResult.reachableStunUrls.size());
                         }
                     }
                     catch (Exception exception) {
                         VoxLinkMod.LOGGER.warn("[createRoom] probeAsync failed: {}", (Object)exception.getMessage());
                     }
                 }
-                VoxLinkMod.LOGGER.info("[createRoom] Background NAT probe done: natType={}, port={}", (Object)string, (Object)n2);
-                object = this.currentRoom.get();
-                if (object != null && object != PENDING && ((RoomState)object).roomInfo != null) {
-                    ((RoomState)object).roomInfo.setNatType(string);
+                VoxLinkMod.LOGGER.info("[createRoom] Background NAT probe done: natType={}, port={}", (Object)natType, (Object)probePort);
+                RoomState roomState = this.currentRoom.get();
+                if (roomState != null && roomState != PENDING && roomState.roomInfo != null) {
+                    roomState.roomInfo.setNatType(natType);
                     try {
-                        this.signalingClient.updateRoom(((RoomState)object).roomInfo.getCode(), ((RoomState)object).roomInfo.getToken(), ((RoomState)object).roomInfo.getName(), null, ((RoomState)object).roomInfo.getMaxPlayers(), ((RoomState)object).roomInfo.isVisible(), ((RoomState)object).roomInfo.getAuthType(), ((RoomState)object).roomInfo.getCategory());
-                        VoxLinkMod.LOGGER.info("[createRoom] NAT type updated: {}", (Object)string);
+                        this.signalingClient.updateRoom(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), roomState.roomInfo.getName(), null, roomState.roomInfo.getMaxPlayers(), roomState.roomInfo.isVisible(), roomState.roomInfo.getAuthType(), roomState.roomInfo.getCategory());
+                        VoxLinkMod.LOGGER.info("[createRoom] NAT type updated: {}", (Object)natType);
                     }
                     catch (Exception exception) {
                         VoxLinkMod.LOGGER.warn("[createRoom] NAT type update failed: {}", (Object)exception.getMessage());
                     }
                 } else {
                     VoxLinkMod.LOGGER.info("[createRoom] Room not ready, retry NAT update in 2s");
-                    String string2 = string;
+                    String pendingNatType = natType;
                     this.scheduler.schedule(() -> {
-                        RoomState roomState = this.currentRoom.get();
-                        if (roomState != null && roomState != PENDING && roomState.roomInfo != null) {
-                            roomState.roomInfo.setNatType(string2);
-                            VoxLinkMod.LOGGER.info("[createRoom] Delayed NAT type update: {}", (Object)string2);
+                        RoomState delayedState = this.currentRoom.get();
+                        if (delayedState != null && delayedState != PENDING && delayedState.roomInfo != null) {
+                            delayedState.roomInfo.setNatType(pendingNatType);
+                            VoxLinkMod.LOGGER.info("[createRoom] Delayed NAT type update: {}", (Object)pendingNatType);
                             try {
-                                this.signalingClient.updateRoom(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), roomState.roomInfo.getName(), null, roomState.roomInfo.getMaxPlayers(), roomState.roomInfo.isVisible(), roomState.roomInfo.getAuthType(), roomState.roomInfo.getCategory());
+                                this.signalingClient.updateRoom(delayedState.roomInfo.getCode(), delayedState.roomInfo.getToken(), delayedState.roomInfo.getName(), null, delayedState.roomInfo.getMaxPlayers(), delayedState.roomInfo.isVisible(), delayedState.roomInfo.getAuthType(), delayedState.roomInfo.getCategory());
                             }
                             catch (Exception exception) {
                                 VoxLinkMod.LOGGER.warn("[createRoom] Delayed NAT type update failed: {}", (Object)exception.getMessage());
@@ -228,155 +226,157 @@ public class RoomManager {
                 VoxLinkMod.LOGGER.warn("[createRoom] Background NAT probe failed: {}", (Object)exception.getMessage());
             }
         });
-        CompletionStage completionStage = this.signalingClient.getPublicIp().exceptionally(throwable -> {
+        CompletableFuture<SignalingClient.ApiResponse> publicIpFuture = this.signalingClient.getPublicIp().exceptionally(throwable -> {
             VoxLinkMod.LOGGER.warn("[createRoom] Public IP fetch failed: {}, continue without IP", (Object)throwable.getMessage());
             return new SignalingClient.ApiResponse(false, null, null, null);
         });
-        int n4 = 340;
-        CompletionStage completionStage2 = ((CompletableFuture)((CompletableFuture)((CompletableFuture)((CompletableFuture)completableFuture.thenCombine(completionStage, (natResult, apiResponse) -> {
-            String string = null;
-            String string2 = null;
-            if (apiResponse.success && apiResponse.data != null) {
-                if (apiResponse.data.has("ip") && !apiResponse.data.get("ip").isJsonNull()) {
-                    string = apiResponse.data.get("ip").getAsString();
+        int protocolVersion = 340;
+        CompletableFuture<RoomInfo> result = initialNat
+            .thenCombine(publicIpFuture, (natResult, apiResponse) -> {
+                String hostIp = null;
+                String hostIpv6 = null;
+                if (apiResponse.success && apiResponse.data != null) {
+                    if (apiResponse.data.has("ip") && !apiResponse.data.get("ip").isJsonNull()) {
+                        hostIp = apiResponse.data.get("ip").getAsString();
+                    }
+                    if (apiResponse.data.has("ipv6") && !apiResponse.data.get("ipv6").isJsonNull()) {
+                        hostIpv6 = apiResponse.data.get("ipv6").getAsString();
+                    }
                 }
-                if (apiResponse.data.has("ipv6") && !apiResponse.data.get("ipv6").isJsonNull()) {
-                    string2 = apiResponse.data.get("ipv6").getAsString();
+                VoxLinkMod.LOGGER.info("[createRoom] NAT+IP ready: nat={}, ip={}, ipv6={}", new Object[]{natResult.nat, hostIp, hostIpv6});
+                if ((hostIpv6 == null || hostIpv6.isEmpty()) && StunDetector.verifyIPv6Connectivity() && (hostIpv6 = ConnectionFallback.getLocalGlobalIpv6()) != null) {
+                    VoxLinkMod.LOGGER.info("[createRoom] Server returned no IPv6, using local global IPv6: {} (reachability unverified)", (Object)hostIpv6);
                 }
-            }
-            VoxLinkMod.LOGGER.info("[createRoom] NAT+IP ready: nat={}, ip={}, ipv6={}", new Object[]{natResult.nat, string, string2});
-            if ((string2 == null || string2.isEmpty()) && StunDetector.verifyIPv6Connectivity() && (string2 = ConnectionFallback.getLocalGlobalIpv6()) != null) {
-                VoxLinkMod.LOGGER.info("[createRoom] Server returned no IPv6, using local global IPv6: {} (reachability unverified)", (Object)string2);
-            }
-            return new CreateRoomResult((NatResult)natResult, null, string, string2);
-        })).thenCompose(createRoomResult -> {
-            String string5 = createRoomResult.hostIp;
-            String string6 = createRoomResult.hostIpv6;
-            NatResult natResult = createRoomResult.natResult;
-            VoxLinkMod.LOGGER.info("[createRoom] Step 2: call API to create room");
-            return this.signalingClient.createRoom(string, string2 != null && !string2.isEmpty() ? string2 : null, n, natResult.port, natResult.nat, natResult.geyserPort, bl, string3, string4, n4, n3, string6, GAME_VERSION).thenApply(apiResponse -> {
-                VoxLinkMod.LOGGER.info("[createRoom] Step 2 done: success={}", (Object)apiResponse.success);
-                return new CreateRoomResult(natResult, (SignalingClient.ApiResponse)apiResponse, string5, string6);
-            });
-        })).thenApply(createRoomResult -> {
-            String string4;
-            NatResult natResult = createRoomResult.natResult;
-            SignalingClient.ApiResponse apiResponse2 = createRoomResult.apiResponse;
-            if (!apiResponse2.success) {
-                String string5;
-                String string6 = null;
-                if (TRANSIENT_ERRORS.contains(apiResponse2.error)) {
+                return new CreateRoomResult(natResult, null, hostIp, hostIpv6);
+            })
+            .thenCompose(createRoomResult -> {
+                String hostIp = createRoomResult.hostIp;
+                String hostIpv6 = createRoomResult.hostIpv6;
+                NatResult natResult = createRoomResult.natResult;
+                VoxLinkMod.LOGGER.info("[createRoom] Step 2: call API to create room");
+                return this.signalingClient.createRoom(name, password, maxPlayers, natResult.port, natResult.nat, natResult.geyserPort, visible, authType, category, protocolVersion, peerPort, hostIpv6, GAME_VERSION).thenApply(apiResponse -> {
+                    VoxLinkMod.LOGGER.info("[createRoom] Step 2 done: success={}", (Object)apiResponse.success);
+                    return new CreateRoomResult(natResult, apiResponse, hostIp, hostIpv6);
+                });
+            })
+            .thenApply(createRoomResult -> {
+                NatResult natResult = createRoomResult.natResult;
+                SignalingClient.ApiResponse apiResponse2 = createRoomResult.apiResponse;
+                if (!apiResponse2.success) {
+                    String errMsg = null;
+                    if (TRANSIENT_ERRORS.contains(apiResponse2.error)) {
+                        this.currentRoom.compareAndSet(PENDING, null);
+                        throw new TransientException(apiResponse2.error + ": " + apiResponse2.message);
+                    }
                     this.currentRoom.compareAndSet(PENDING, null);
-                    throw new TransientException(apiResponse2.error + ": " + apiResponse2.message);
+                    String errDetail = apiResponse2.error != null ? apiResponse2.error : (errMsg = apiResponse2.message != null ? apiResponse2.message : I18n.format((String)"voxlink.error.unknown", (Object[])new Object[0]));
+                    if (apiResponse2.message != null && !apiResponse2.message.equals(apiResponse2.error)) {
+                        errMsg = apiResponse2.error + ": " + apiResponse2.message;
+                    }
+                    if ("QUEUED".equals(apiResponse2.error) && apiResponse2.queuePosition > 0) {
+                        errMsg = "QUEUED:" + apiResponse2.queuePosition;
+                    }
+                    throw new RuntimeException(errMsg != null ? errMsg : errDetail);
                 }
-                this.currentRoom.compareAndSet(PENDING, null);
-                String string7 = apiResponse2.error != null ? apiResponse2.error : (string5 = (string6 = apiResponse2.message != null ? apiResponse2.message : I18n.func_135052_a((String)"voxlink.error.unknown", (Object[])new Object[0])));
-                if (apiResponse2.message != null && !apiResponse2.message.equals(apiResponse2.error)) {
-                    string6 = apiResponse2.error + ": " + apiResponse2.message;
+                if (apiResponse2.data == null) {
+                    this.currentRoom.compareAndSet(PENDING, null);
+                    throw new RuntimeException(I18n.format((String)"voxlink.error.server_response_abnormal", (Object[])new Object[0]));
                 }
-                if ("QUEUED".equals(apiResponse2.error) && apiResponse2.queuePosition > 0) {
-                    string6 = "QUEUED:" + apiResponse2.queuePosition;
+                String code = apiResponse2.data.has("code") ? apiResponse2.data.get("code").getAsString() : "";
+                String hostToken = apiResponse2.data.has("hostToken") ? apiResponse2.data.get("hostToken").getAsString() : "";
+                if (apiResponse2.data.has("expiresIn") && !apiResponse2.data.get("expiresIn").isJsonNull()) {
+                    long expiresIn = apiResponse2.data.get("expiresIn").getAsLong();
+                    VoxLinkMod.LOGGER.info("Room created, expires in {}s", (Object)expiresIn);
                 }
-                throw new RuntimeException(string6);
-            }
-            if (apiResponse2.data == null) {
-                this.currentRoom.compareAndSet(PENDING, null);
-                throw new RuntimeException(I18n.func_135052_a((String)"voxlink.error.server_response_abnormal", (Object[])new Object[0]));
-            }
-            String string8 = apiResponse2.data.has("code") ? apiResponse2.data.get("code").getAsString() : "";
-            String string9 = apiResponse2.data.has("hostToken") ? apiResponse2.data.get("hostToken").getAsString() : "";
-            String string10 = string9;
-            if (apiResponse2.data.has("expiresIn") && !apiResponse2.data.get("expiresIn").isJsonNull()) {
-                long l = apiResponse2.data.get("expiresIn").getAsLong();
-                VoxLinkMod.LOGGER.info("Room created, expires in {}s", (Object)l);
-            }
-            RoomInfo roomInfo = new RoomInfo(string8, string, string2 != null && !string2.isEmpty(), n, string9, true, natResult.port, natResult.nat);
-            roomInfo.setHostIp(createRoomResult.hostIp);
-            roomInfo.setHostIpv6(createRoomResult.hostIpv6);
-            roomInfo.setBedrockPort(natResult.geyserPort > 0 ? natResult.geyserPort : -1);
-            roomInfo.setCategory(string4);
-            roomInfo.setVisible(bl);
-            RoomState roomState = new RoomState(roomInfo);
-            if (!this.currentRoom.compareAndSet(PENDING, roomState)) {
-                VoxLinkMod.LOGGER.warn("[createRoom] State cleared (timeout?), discard late result");
-                return null;
-            }
-            if (string8 != null && !string8.isEmpty()) {
-                LogUploadManager.arm(string8, true);
-            }
-            if (apiResponse2.data.has("nameApproved") && !apiResponse2.data.get("nameApproved").isJsonNull() && !apiResponse2.data.get("nameApproved").getAsBoolean()) {
-                roomInfo.setNameApproved(false);
-            }
-            this.intentionalLeave = false;
-            this.roomLostHandled.set(false);
-            this.heartbeatFailCount.set(0);
-            this.startHeartbeat();
-            this.startSignalPoll();
-            String string11 = "host_" + string8;
-            this.topologyClient.onRoomJoined(string8, string9, true, string11, 0);
-            try {
-                int n2 = P2PBridge.startHostBridge(natResult.port).get(5L, TimeUnit.SECONDS);
-                if (n2 > 0) {
-                    VoxLinkMod.LOGGER.info("Host bridge started port={}, MC port: {}", (Object)n2, (Object)natResult.port);
+                RoomInfo roomInfo = new RoomInfo(code, name, password != null && !password.isEmpty(), maxPlayers, hostToken, true, natResult.port, natResult.nat);
+                roomInfo.setHostIp(createRoomResult.hostIp);
+                roomInfo.setHostIpv6(createRoomResult.hostIpv6);
+                roomInfo.setBedrockPort(natResult.geyserPort > 0 ? natResult.geyserPort : -1);
+                roomInfo.setCategory(category);
+                roomInfo.setVisible(visible);
+                RoomState roomState = new RoomState(roomInfo);
+                if (!this.currentRoom.compareAndSet(PENDING, roomState)) {
+                    VoxLinkMod.LOGGER.warn("[createRoom] State cleared (timeout?), discard late result");
+                    return null;
+                }
+                if (code != null && !code.isEmpty()) {
+                    LogUploadManager.arm(code, true);
+                }
+                if (apiResponse2.data.has("nameApproved") && !apiResponse2.data.get("nameApproved").isJsonNull() && !apiResponse2.data.get("nameApproved").getAsBoolean()) {
+                    roomInfo.setNameApproved(false);
+                }
+                this.intentionalLeave = false;
+                this.roomLostHandled.set(false);
+                this.heartbeatFailCount.set(0);
+                this.startHeartbeat();
+                this.startSignalPoll();
+                String clientId = "host_" + code;
+                this.topologyClient.onRoomJoined(code, hostToken, true, clientId, 0);
+                try {
+                    int bridgePort = P2PBridge.startHostBridge(natResult.port).get(5L, TimeUnit.SECONDS);
+                    if (bridgePort > 0) {
+                        VoxLinkMod.LOGGER.info("Host bridge started port={}, MC port: {}", (Object)bridgePort, (Object)natResult.port);
+                    } else {
+                        VoxLinkMod.LOGGER.warn("Host bridge start failed, client needs direct MC port {}", (Object)natResult.port);
+                    }
+                }
+                catch (Exception exception) {
+                    VoxLinkMod.LOGGER.warn("Host bridge start exception: {}", (Object)exception.getMessage());
+                }
+                AtomicReference<Boolean> ipv4Ok = new AtomicReference<Boolean>(null);
+                AtomicReference<Boolean> ipv6Ok = new AtomicReference<Boolean>(null);
+                int addrCount = 0;
+                if (createRoomResult.hostIp != null && !createRoomResult.hostIp.isEmpty()) {
+                    ++addrCount;
+                }
+                if (createRoomResult.hostIpv6 != null && !createRoomResult.hostIpv6.isEmpty()) {
+                    ++addrCount;
+                }
+                int expectedCount = addrCount;
+                AtomicInteger atomicInteger = new AtomicInteger(0);
+                if (createRoomResult.hostIp != null && !createRoomResult.hostIp.isEmpty()) {
+                    roomInfo.setIpv4Status(RoomInfo.PortStatus.UNKNOWN);
+                    String checkIp = createRoomResult.hostIp;
+                    this.signalingClient.checkPortReachable(createRoomResult.hostIp, natResult.port).thenAccept(apiResponse -> {
+                        boolean reachable = apiResponse.success && apiResponse.data != null && apiResponse.data.has("reachable") && apiResponse.data.get("reachable").getAsBoolean();
+                        roomInfo.setIpv4Status(reachable ? RoomInfo.PortStatus.REACHABLE : RoomInfo.PortStatus.UNREACHABLE);
+                        VoxLinkMod.LOGGER.info("IPv4 port check: {}:{} = {}", new Object[]{checkIp, natResult.port, reachable});
+                        ipv4Ok.set(reachable);
+                        if (atomicInteger.incrementAndGet() == expectedCount) {
+                            this.warnPortBlockedCombined(ipv4Ok.get(), ipv6Ok.get(), checkIp, createRoomResult.hostIpv6);
+                        }
+                    });
                 } else {
-                    VoxLinkMod.LOGGER.warn("Host bridge start failed, client needs direct MC port {}", (Object)natResult.port);
+                    roomInfo.setIpv4Status(RoomInfo.PortStatus.NO_ADDRESS);
                 }
-            }
-            catch (Exception exception) {
-                VoxLinkMod.LOGGER.warn("Host bridge start exception: {}", (Object)exception.getMessage());
-            }
-            AtomicReference<Object> atomicReference = new AtomicReference<Object>(null);
-            AtomicReference<Object> atomicReference2 = new AtomicReference<Object>(null);
-            int n3 = 0;
-            if (createRoomResult.hostIp != null && !createRoomResult.hostIp.isEmpty()) {
-                ++n3;
-            }
-            if (createRoomResult.hostIpv6 != null && !createRoomResult.hostIpv6.isEmpty()) {
-                ++n3;
-            }
-            int n4 = n3;
-            AtomicInteger atomicInteger = new AtomicInteger(0);
-            if (createRoomResult.hostIp != null && !createRoomResult.hostIp.isEmpty()) {
-                roomInfo.setIpv4Status(RoomInfo.PortStatus.UNKNOWN);
-                string4 = createRoomResult.hostIp;
-                this.signalingClient.checkPortReachable(createRoomResult.hostIp, natResult.port).thenAccept(apiResponse -> {
-                    boolean bl = apiResponse.success && apiResponse.data != null && apiResponse.data.has("reachable") && apiResponse.data.get("reachable").getAsBoolean();
-                    roomInfo.setIpv4Status(bl ? RoomInfo.PortStatus.REACHABLE : RoomInfo.PortStatus.UNREACHABLE);
-                    VoxLinkMod.LOGGER.info("IPv4 port check: {}:{} = {}", new Object[]{string4, natResult.port, bl});
-                    atomicReference.set(bl);
-                    if (atomicInteger.incrementAndGet() == n4) {
-                        this.warnPortBlockedCombined((Boolean)atomicReference.get(), (Boolean)atomicReference2.get(), string4, createRoomResult.hostIpv6);
-                    }
-                });
-            } else {
-                roomInfo.setIpv4Status(RoomInfo.PortStatus.NO_ADDRESS);
-            }
-            if (createRoomResult.hostIpv6 != null && !createRoomResult.hostIpv6.isEmpty()) {
-                roomInfo.setIpv6Status(RoomInfo.PortStatus.UNKNOWN);
-                string4 = createRoomResult.hostIpv6;
-                this.signalingClient.checkPortReachable(createRoomResult.hostIpv6, natResult.port).thenAccept(apiResponse -> {
-                    boolean bl = apiResponse.success && apiResponse.data != null && apiResponse.data.has("reachable") && apiResponse.data.get("reachable").getAsBoolean();
-                    roomInfo.setIpv6Status(bl ? RoomInfo.PortStatus.REACHABLE : RoomInfo.PortStatus.UNREACHABLE);
-                    VoxLinkMod.LOGGER.info("IPv6 port check: [{}]:{} = {}", new Object[]{string4, natResult.port, bl});
-                    atomicReference2.set(bl);
-                    if (atomicInteger.incrementAndGet() == n4) {
-                        this.warnPortBlockedCombined((Boolean)atomicReference.get(), (Boolean)atomicReference2.get(), createRoomResult.hostIp, string4);
-                    }
-                });
-            } else {
-                roomInfo.setIpv6Status(RoomInfo.PortStatus.NO_ADDRESS);
-            }
-            return roomInfo;
-        })).applyToEither((CompletionStage)RoomManager.delayedFail(120L), Function.identity())).exceptionally(throwable -> {
-            this.cleanupCreateRoomResources(n2);
-            VoxLinkMod.LOGGER.error("[createRoom] failed: {}", (Object)throwable.getMessage());
-            if (throwable instanceof RuntimeException) {
-                throw (RuntimeException)throwable;
-            }
-            throw new RuntimeException((Throwable)throwable);
-        });
-        this.pendingCreateFuture = (CompletableFuture)completionStage2;
-        return (CompletableFuture)completionStage2;
+                if (createRoomResult.hostIpv6 != null && !createRoomResult.hostIpv6.isEmpty()) {
+                    roomInfo.setIpv6Status(RoomInfo.PortStatus.UNKNOWN);
+                    String checkIpv6 = createRoomResult.hostIpv6;
+                    this.signalingClient.checkPortReachable(createRoomResult.hostIpv6, natResult.port).thenAccept(apiResponse -> {
+                        boolean reachable = apiResponse.success && apiResponse.data != null && apiResponse.data.has("reachable") && apiResponse.data.get("reachable").getAsBoolean();
+                        roomInfo.setIpv6Status(reachable ? RoomInfo.PortStatus.REACHABLE : RoomInfo.PortStatus.UNREACHABLE);
+                        VoxLinkMod.LOGGER.info("IPv6 port check: [{}]:{} = {}", new Object[]{checkIpv6, natResult.port, reachable});
+                        ipv6Ok.set(reachable);
+                        if (atomicInteger.incrementAndGet() == expectedCount) {
+                            this.warnPortBlockedCombined(ipv4Ok.get(), ipv6Ok.get(), createRoomResult.hostIp, checkIpv6);
+                        }
+                    });
+                } else {
+                    roomInfo.setIpv6Status(RoomInfo.PortStatus.NO_ADDRESS);
+                }
+                return roomInfo;
+            })
+            .applyToEither(RoomManager.delayedFail(120L), Function.identity())
+            .exceptionally(throwable -> {
+                this.cleanupCreateRoomResources(port);
+                VoxLinkMod.LOGGER.error("[createRoom] failed: {}", (Object)throwable.getMessage());
+                if (throwable instanceof RuntimeException) {
+                    throw (RuntimeException)throwable;
+                }
+                throw new RuntimeException((Throwable)throwable);
+            });
+        this.pendingCreateFuture = result;
+        return result;
     }
 
     private void cleanupCreateRoomResources(int n) {
@@ -396,13 +396,12 @@ public class RoomManager {
         RoomState roomState = this.currentRoom.get();
         return roomState != null && roomState != PENDING && roomState.roomInfo != null ? ((CompletableFuture)this.signalingClient.updateRoom(string, string2, string3, string4, n, bl, string5, string6).thenApply(apiResponse -> {
             if (!apiResponse.success) {
-                String string5;
-                String string6 = null;
-                String string7 = apiResponse.error != null ? apiResponse.error : (string5 = (string6 = apiResponse.message != null ? apiResponse.message : I18n.func_135052_a((String)"voxlink.error.unknown", (Object[])new Object[0])));
+                String errMsg = null;
+                String errDetail = apiResponse.error != null ? apiResponse.error : (errMsg = apiResponse.message != null ? apiResponse.message : I18n.format((String)"voxlink.error.unknown", (Object[])new Object[0]));
                 if (apiResponse.message != null && !apiResponse.message.equals(apiResponse.error)) {
-                    string6 = apiResponse.error + ": " + apiResponse.message;
+                    errMsg = apiResponse.error + ": " + apiResponse.message;
                 }
-                throw new RuntimeException(string6);
+                throw new RuntimeException(errMsg != null ? errMsg : errDetail);
             }
             RoomInfo roomInfo = roomState.roomInfo;
             if (string3 != null && !string3.isEmpty()) {
@@ -430,19 +429,19 @@ public class RoomManager {
                 throw (RuntimeException)object;
             }
             throw new RuntimeException((Throwable)object);
-        }) : RoomManager.failedFuture(new IllegalStateException(I18n.func_135052_a((String)"voxlink.error.not_in_room", (Object[])new Object[0])));
+        }) : RoomManager.failedFuture(new IllegalStateException(I18n.format((String)"voxlink.error.not_in_room", (Object[])new Object[0])));
     }
 
     public CompletableFuture<RoomInfo> joinRoom(String string, String string2) {
         if (!this.currentRoom.compareAndSet(null, PENDING)) {
-            return RoomManager.failedFuture(new IllegalStateException(I18n.func_135052_a((String)"voxlink.error.already_in_room_or_pending", (Object[])new Object[0])));
+            return RoomManager.failedFuture(new IllegalStateException(I18n.format((String)"voxlink.error.already_in_room_or_pending", (Object[])new Object[0])));
         }
         if (string != null && !string.trim().isEmpty()) {
             StunProbe.ProbeResult probeResult2;
             String string3 = string.toUpperCase();
             if (!string3.matches("^[A-HJ-NP-Z2-9]{6}$")) {
                 this.currentRoom.compareAndSet(PENDING, null);
-                return RoomManager.failedFuture(new IllegalArgumentException(I18n.func_135052_a((String)"voxlink.error.invalid_room_code", (Object[])new Object[0])));
+                return RoomManager.failedFuture(new IllegalArgumentException(I18n.format((String)"voxlink.error.invalid_room_code", (Object[])new Object[0])));
             }
             this.connectionManager.setStunProbeResult(null);
             if (StunProbe.isNetworkChanged()) {
@@ -466,22 +465,21 @@ public class RoomManager {
             }
             return ((CompletableFuture)((CompletableFuture)this.signalingClient.joinRoom(string3, string2).thenApply(apiResponse -> {
                 if (!apiResponse.success) {
-                    String string2;
-                    String string3 = null;
+                    String errMsg = null;
                     if (TRANSIENT_ERRORS.contains(apiResponse.error)) {
                         this.currentRoom.compareAndSet(PENDING, null);
                         throw new TransientException(apiResponse.error + ": " + apiResponse.message);
                     }
                     this.currentRoom.compareAndSet(PENDING, null);
-                    String string4 = apiResponse.error != null ? apiResponse.error : (string2 = (string3 = apiResponse.message != null ? apiResponse.message : I18n.func_135052_a((String)"voxlink.error.unknown", (Object[])new Object[0])));
+                    String errDetail = apiResponse.error != null ? apiResponse.error : (errMsg = apiResponse.message != null ? apiResponse.message : I18n.format((String)"voxlink.error.unknown", (Object[])new Object[0]));
                     if (apiResponse.message != null && !apiResponse.message.equals(apiResponse.error)) {
-                        string3 = apiResponse.error + ": " + apiResponse.message;
+                        errMsg = apiResponse.error + ": " + apiResponse.message;
                     }
-                    throw new RuntimeException(string3);
+                    throw new RuntimeException(errMsg != null ? errMsg : errDetail);
                 }
                 if (apiResponse.data == null) {
                     this.currentRoom.compareAndSet(PENDING, null);
-                    throw new RuntimeException(I18n.func_135052_a((String)"voxlink.error.server_response_abnormal", (Object[])new Object[0]));
+                    throw new RuntimeException(I18n.format((String)"voxlink.error.server_response_abnormal", (Object[])new Object[0]));
                 }
                 String string5 = apiResponse.data.has("clientToken") ? apiResponse.data.get("clientToken").getAsString() : "";
                 String string6 = apiResponse.data.has("clientId") ? apiResponse.data.get("clientId").getAsString() : "";
@@ -547,7 +545,7 @@ public class RoomManager {
             });
         }
         this.currentRoom.compareAndSet(PENDING, null);
-        return RoomManager.failedFuture(new IllegalArgumentException(I18n.func_135052_a((String)"voxlink.error.room_not_found", (Object[])new Object[0])));
+        return RoomManager.failedFuture(new IllegalArgumentException(I18n.format((String)"voxlink.error.room_not_found", (Object[])new Object[0])));
     }
 
     public void leaveRoom() {
@@ -673,9 +671,9 @@ public class RoomManager {
         RoomState roomState = this.currentRoom.get();
         if (roomState != null && roomState != PENDING) {
             RoomInfo roomInfo = roomState.roomInfo;
-            VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.room_info_detail", (Object[])new Object[]{roomInfo.getName(), roomInfo.getCode(), roomInfo.getCurrentPlayers(), roomInfo.getMaxPlayers(), roomInfo.getNatType(), roomInfo.isHost() ? I18n.func_135052_a((String)"voxlink.yes", (Object[])new Object[0]) : I18n.func_135052_a((String)"voxlink.no", (Object[])new Object[0])})));
+            VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.room_info_detail", (Object[])new Object[]{roomInfo.getName(), roomInfo.getCode(), roomInfo.getCurrentPlayers(), roomInfo.getMaxPlayers(), roomInfo.getNatType(), roomInfo.isHost() ? I18n.format((String)"voxlink.yes", (Object[])new Object[0]) : I18n.format((String)"voxlink.no", (Object[])new Object[0])})));
         } else {
-            VoxLinkChat.print(I18n.func_135052_a((String)"voxlink.error.not_in_room", (Object[])new Object[0]));
+            VoxLinkChat.print(I18n.format((String)"voxlink.error.not_in_room", (Object[])new Object[0]));
         }
     }
 
@@ -709,29 +707,29 @@ public class RoomManager {
             if (string3 != null) {
                 this.lastModeratedName = string3;
             }
-            if ((minecraft = Minecraft.func_71410_x()) != null && minecraft.field_71439_g != null) {
+            if ((minecraft = Minecraft.getMinecraft()) != null && minecraft.player != null) {
                 roomState.roomInfo.setNameApproved(bl);
                 if (bl && string3 != null && !string3.isEmpty() && !"name_pending_review".equals(string3)) {
                     roomState.roomInfo.setName(string3);
                 }
-                minecraft.func_152344_a(() -> {
-                    if (minecraft.field_71439_g != null) {
+                minecraft.addScheduledTask(() -> {
+                    if (minecraft.player != null) {
                         switch (string) {
                             case "approved": {
-                                VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.name_approved", (Object[])new Object[0])));
+                                VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.chat.name_approved", (Object[])new Object[0])));
                                 if (string3 == null || string3.isEmpty()) break;
-                                VoxLinkChat.print(new TextComponentString("  " + string3).func_150255_a(new Style().func_150238_a(TextFormatting.GRAY)));
+                                VoxLinkChat.print(new TextComponentString("  " + string3).setStyle(new Style().setColor(TextFormatting.GRAY)));
                                 break;
                             }
                             case "rejected": {
-                                String string4 = string2 != null && !string2.isEmpty() ? string2 : I18n.func_135052_a((String)"voxlink.chat.unknown_reason", (Object[])new Object[0]);
-                                VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.name_rejected_with_hint", (Object[])new Object[0])));
-                                VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.reason_label", (Object[])new Object[]{string4})));
+                                String string4 = string2 != null && !string2.isEmpty() ? string2 : I18n.format((String)"voxlink.chat.unknown_reason", (Object[])new Object[0]);
+                                VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.chat.name_rejected_with_hint", (Object[])new Object[0])));
+                                VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.chat.reason_label", (Object[])new Object[]{string4})));
                                 break;
                             }
                             case "unavailable": {
-                                VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.name_unavailable", (Object[])new Object[0])));
-                                VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.please_retry", (Object[])new Object[0])));
+                                VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.chat.name_unavailable", (Object[])new Object[0])));
+                                VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.chat.please_retry", (Object[])new Object[0])));
                             }
                         }
                     }
@@ -847,18 +845,18 @@ public class RoomManager {
     private void notifyRoomLostActionBar(String string) {
         try {
             AttemptingJoinScreen attemptingJoinScreen;
-            Minecraft minecraft = Minecraft.func_71410_x();
-            if (minecraft == null || minecraft.field_71439_g == null) {
+            Minecraft minecraft = Minecraft.getMinecraft();
+            if (minecraft == null || minecraft.player == null) {
                 return;
             }
-            GuiScreen guiScreen = minecraft.field_71462_r;
+            GuiScreen guiScreen = minecraft.currentScreen;
             if (guiScreen instanceof AttemptingJoinScreen) {
                 attemptingJoinScreen = (AttemptingJoinScreen)guiScreen;
                 attemptingJoinScreen.onRoomLost();
             }
-            attemptingJoinScreen = "HOST_CLOSED".equals(string) || "ROOM_CLOSED".equals(string) ? new TextComponentString(I18n.func_135052_a((String)"voxlink.room_lost.host_closed", (Object[])new Object[0])) : ("HOST_DISCONNECTED".equals(string) ? new TextComponentString(I18n.func_135052_a((String)"voxlink.room_lost.host_disconnected", (Object[])new Object[0])) : ("ROOM_NOT_FOUND".equals(string) ? new TextComponentString(I18n.func_135052_a((String)"voxlink.room_lost.host_gone", (Object[])new Object[0])) : (!"TOKEN_INVALID".equals(string) && !"INVALID_TOKEN".equals(string) ? new TextComponentString(I18n.func_135052_a((String)"voxlink.room_lost.default", (Object[])new Object[0])) : new TextComponentString(I18n.func_135052_a((String)"voxlink.room_closed", (Object[])new Object[0])))));
-            VoxLinkChat.print(new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.error_prefix", (Object[])new Object[0])).func_150257_a((ITextComponent)attemptingJoinScreen));
-            VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.room_lost.hint", (Object[])new Object[0])));
+            ITextComponent message = "HOST_CLOSED".equals(string) || "ROOM_CLOSED".equals(string) ? new TextComponentString(I18n.format((String)"voxlink.room_lost.host_closed", (Object[])new Object[0])) : ("HOST_DISCONNECTED".equals(string) ? new TextComponentString(I18n.format((String)"voxlink.room_lost.host_disconnected", (Object[])new Object[0])) : ("ROOM_NOT_FOUND".equals(string) ? new TextComponentString(I18n.format((String)"voxlink.room_lost.host_gone", (Object[])new Object[0])) : (!"TOKEN_INVALID".equals(string) && !"INVALID_TOKEN".equals(string) ? new TextComponentString(I18n.format((String)"voxlink.room_lost.default", (Object[])new Object[0])) : new TextComponentString(I18n.format((String)"voxlink.room_closed", (Object[])new Object[0])))));
+            VoxLinkChat.print(new TextComponentString(I18n.format((String)"voxlink.chat.error_prefix", (Object[])new Object[0])).appendSibling(message));
+            VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.room_lost.hint", (Object[])new Object[0])));
         }
         catch (Exception | NoClassDefFoundError throwable) {
             VoxLinkMod.LOGGER.debug("Show chat message failed: {}", (Object)throwable.getMessage());
@@ -933,8 +931,8 @@ public class RoomManager {
             int n = this.heartbeatSeq.incrementAndGet();
             RoomState roomState2 = roomState;
             int n2 = 0;
-            if (roomState.roomInfo.isHost() && (integratedServer = Minecraft.func_71410_x().func_71401_C()) != null) {
-                n2 = integratedServer.func_184103_al().func_72394_k();
+            if (roomState.roomInfo.isHost() && (integratedServer = Minecraft.getMinecraft().getIntegratedServer()) != null) {
+                n2 = integratedServer.getPlayerList().getCurrentPlayerCount();
             }
             ((CompletableFuture)this.signalingClient.heartbeat(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), roomState.roomInfo.isHost(), string, 0.1, jsonObject, n, this.topologyClient.getOverlayManager().getLocalPort(), n2).thenAccept(apiResponse -> {
                 if (this.currentRoom.get() == roomState2) {
@@ -948,13 +946,13 @@ public class RoomManager {
                                 return;
                             }
                             if (!("ROOM_NOT_FOUND".equals(apiResponse.error) || "ROOM_EXPIRED".equals(apiResponse.error) || "INVALID_TOKEN".equals(apiResponse.error) || "ROOM_CLOSED".equals(apiResponse.error))) {
-                                int n = this.heartbeatFailCount.incrementAndGet();
-                                VoxLinkMod.LOGGER.warn("Heartbeat failed ({}/{}): {}", new Object[]{n, 8, apiResponse.error});
+                                int failCount = this.heartbeatFailCount.incrementAndGet();
+                                VoxLinkMod.LOGGER.warn("Heartbeat failed ({}/{}): {}", new Object[]{failCount, 8, apiResponse.error});
                                 if ("SERVER_403".equals(apiResponse.error) || "SERVER_404".equals(apiResponse.error)) {
                                     VoxLinkMod.LOGGER.warn("Server temp error ({}), not counted as heartbeat fail", (Object)apiResponse.error);
                                     this.heartbeatFailCount.decrementAndGet();
                                 }
-                                if (n >= 8) {
+                                if (failCount >= 8) {
                                     VoxLinkMod.LOGGER.error("Heartbeat failed too many times, room may be lost");
                                     this.handleRoomLost();
                                 }
@@ -982,9 +980,9 @@ public class RoomManager {
                         this.rescheduleHeartbeat(l4);
                     }
                     if (apiResponse.data != null && apiResponse.data.has("topology") && !apiResponse.data.get("topology").isJsonNull()) {
-                        JsonObject jsonObject = apiResponse.data.getAsJsonObject("topology");
+                        JsonObject topology = apiResponse.data.getAsJsonObject("topology");
                         try {
-                            Minecraft.func_71410_x().func_152344_a(() -> this.topologyClient.handleTopologyInstruction(jsonObject));
+                            Minecraft.getMinecraft().addScheduledTask(() -> this.topologyClient.handleTopologyInstruction(topology));
                         }
                         catch (NoClassDefFoundError noClassDefFoundError) {
                             // empty catch block
@@ -996,9 +994,9 @@ public class RoomManager {
                     }
                     if (apiResponse.data != null && apiResponse.data.has("currentPlayers")) {
                         try {
-                            int n = apiResponse.data.get("currentPlayers").getAsInt();
-                            roomState.roomInfo.setCurrentPlayers(n);
-                            if (roomState.roomInfo.isHost() && n <= 1 && roomState.roomInfo.getPeerCount() == 0 && roomState.roomInfo.hasEverHadPeer()) {
+                            int playerCount = apiResponse.data.get("currentPlayers").getAsInt();
+                            roomState.roomInfo.setCurrentPlayers(playerCount);
+                            if (roomState.roomInfo.isHost() && playerCount <= 1 && roomState.roomInfo.getPeerCount() == 0 && roomState.roomInfo.hasEverHadPeer()) {
                                 if (++this.hostAloneCount >= 3) {
                                     this.hostAloneCount = 0;
                                     this.connectionManager.notifyAllPeersGone();
@@ -1013,9 +1011,9 @@ public class RoomManager {
                     }
                     if (apiResponse.data != null && apiResponse.data.has("nameModerationStatus")) {
                         try {
-                            String string = apiResponse.data.get("nameModerationStatus").getAsString();
-                            String string2 = apiResponse.data.has("name") ? apiResponse.data.get("name").getAsString() : null;
-                            this.handleNameModerationUpdate(roomState2, string, apiResponse.data.has("nameModerationReason") ? apiResponse.data.get("nameModerationReason").getAsString() : null, string2, apiResponse.data.has("nameApproved") && apiResponse.data.get("nameApproved").getAsBoolean());
+                            String moderationStatus = apiResponse.data.get("nameModerationStatus").getAsString();
+                            String moderatedName = apiResponse.data.has("name") ? apiResponse.data.get("name").getAsString() : null;
+                            this.handleNameModerationUpdate(roomState2, moderationStatus, apiResponse.data.has("nameModerationReason") ? apiResponse.data.get("nameModerationReason").getAsString() : null, moderatedName, apiResponse.data.has("nameApproved") && apiResponse.data.get("nameApproved").getAsBoolean());
                         }
                         catch (Exception exception) {
                             // empty catch block
@@ -1023,9 +1021,9 @@ public class RoomManager {
                     }
                 }
             })).exceptionally(object -> {
-                int n = this.heartbeatFailCount.incrementAndGet();
-                VoxLinkMod.LOGGER.warn("Heartbeat exception ({}/{}): {}", new Object[]{n, 8, ((Throwable)object).getMessage()});
-                if (n >= 8) {
+                int excCount = this.heartbeatFailCount.incrementAndGet();
+                VoxLinkMod.LOGGER.warn("Heartbeat exception ({}/{}): {}", new Object[]{excCount, 8, ((Throwable)object).getMessage()});
+                if (excCount >= 8) {
                     this.handleRoomLost();
                 }
                 return null;
@@ -1169,14 +1167,12 @@ public class RoomManager {
     }
 
     private void recoverSignalPollInterval() {
-        long l;
-        boolean bl;
         RoomState roomState = this.currentRoom.get();
-        boolean bl2 = bl = roomState != null && roomState != PENDING && !roomState.roomInfo.isHost();
-        long l2 = bl ? (this.signalingClient.isWsConnected() ? 1000L : 250L) : (l = (long)VoxLinkMod.getConfig().getSignalPollInterval());
-        if (this.currentSignalPollInterval != l) {
-            this.currentSignalPollInterval = l;
-            this.rescheduleSignalPoll(l);
+        boolean bl = roomState != null && roomState != PENDING && !roomState.roomInfo.isHost();
+        long l2 = bl ? (this.signalingClient.isWsConnected() ? 1000L : 250L) : (long)VoxLinkMod.getConfig().getSignalPollInterval();
+        if (this.currentSignalPollInterval != l2) {
+            this.currentSignalPollInterval = l2;
+            this.rescheduleSignalPoll(l2);
         }
     }
 
@@ -1346,11 +1342,11 @@ public class RoomManager {
                 this.guestOpPolicyRoomCode = string2;
                 this.scheduler.schedule(() -> {
                     try {
-                        Minecraft minecraft = Minecraft.func_71410_x();
+                        Minecraft minecraft = Minecraft.getMinecraft();
                         if (minecraft == null) {
                             return;
                         }
-                        minecraft.func_152344_a(() -> this.applyGuestOpPolicy(roomState, minecraft));
+                        minecraft.addScheduledTask(() -> this.applyGuestOpPolicy(roomState, minecraft));
                     }
                     catch (Exception exception) {
                         VoxLinkMod.LOGGER.warn("[RoomManager] handleConnected exception: {}", (Object)exception.getMessage());
@@ -1361,15 +1357,15 @@ public class RoomManager {
     }
 
     public void applyOpPolicy(MinecraftServer minecraftServer, boolean bl, boolean bl2) {
-        String string = Minecraft.func_71410_x().func_110432_I().func_111285_a();
-        minecraftServer.func_152344_a(() -> {
+        String string = Minecraft.getMinecraft().getSession().getUsername();
+        minecraftServer.addScheduledTask(() -> {
             try {
-                for (EntityPlayerMP entityPlayerMP : minecraftServer.func_184103_al().func_181057_v()) {
-                    String string2 = entityPlayerMP.func_70005_c_();
+                for (EntityPlayerMP entityPlayerMP : minecraftServer.getPlayerList().getPlayers()) {
+                    String string2 = entityPlayerMP.getName();
                     boolean bl3 = string2.equals(string);
                     boolean bl4 = bl3 ? bl : bl2;
                     String string3 = bl4 ? "op " + string2 : "deop " + string2;
-                    ((CommandHandler)minecraftServer.func_71187_D()).func_71556_a((ICommandSender)minecraftServer, string3);
+                    ((CommandHandler)minecraftServer.getCommandManager()).executeCommand((ICommandSender)minecraftServer, string3);
                     VoxLinkMod.LOGGER.info("[RoomManager] {}{}: {}", new Object[]{bl3 ? "Host" : "Visitor", bl4 ? "OP" : "DEOP", string2});
                 }
             }
@@ -1381,7 +1377,7 @@ public class RoomManager {
 
     private void applyGuestOpPolicy(RoomState roomState, Minecraft minecraft) {
         try {
-            IntegratedServer integratedServer = minecraft.func_71401_C();
+            IntegratedServer integratedServer = minecraft.getIntegratedServer();
             if (integratedServer == null) {
                 return;
             }
@@ -1423,11 +1419,11 @@ public class RoomManager {
     }
 
     private void notifyRoomEvicted() {
-        Minecraft minecraft = Minecraft.func_71410_x();
+        Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft != null) {
-            minecraft.func_152344_a(() -> {
-                if (minecraft.field_71439_g != null) {
-                    VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.evicted_notice", (Object[])new Object[0])));
+            minecraft.addScheduledTask(() -> {
+                if (minecraft.player != null) {
+                    VoxLinkChat.print((ITextComponent)new TextComponentString(I18n.format((String)"voxlink.chat.evicted_notice", (Object[])new Object[0])));
                 }
             });
         }
@@ -1438,12 +1434,12 @@ public class RoomManager {
         boolean bl3 = bl != null && bl == false;
         boolean bl4 = bl2 != null && bl2 == false;
         boolean bl5 = bl4;
-        if ((bl3 || bl4) && (minecraft = Minecraft.func_71410_x()) != null) {
-            minecraft.func_152344_a(() -> {
-                if (minecraft.field_71439_g != null) {
-                    ITextComponent iTextComponent = new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.error_prefix", (Object[])new Object[0])).func_150255_a(new Style().func_150238_a(TextFormatting.RED));
-                    TextComponentString textComponentString = bl3 && bl4 ? new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.both_unreachable", (Object[])new Object[0])) : (bl3 ? new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.ipv4_unreachable", (Object[])new Object[0])) : new TextComponentString(I18n.func_135052_a((String)"voxlink.chat.ipv6_unreachable", (Object[])new Object[0])));
-                    VoxLinkChat.print(iTextComponent.func_150257_a((ITextComponent)textComponentString));
+        if ((bl3 || bl4) && (minecraft = Minecraft.getMinecraft()) != null) {
+            minecraft.addScheduledTask(() -> {
+                if (minecraft.player != null) {
+                    ITextComponent iTextComponent = new TextComponentString(I18n.format((String)"voxlink.chat.error_prefix", (Object[])new Object[0])).setStyle(new Style().setColor(TextFormatting.RED));
+                    TextComponentString textComponentString = bl3 && bl4 ? new TextComponentString(I18n.format((String)"voxlink.chat.both_unreachable", (Object[])new Object[0])) : (bl3 ? new TextComponentString(I18n.format((String)"voxlink.chat.ipv4_unreachable", (Object[])new Object[0])) : new TextComponentString(I18n.format((String)"voxlink.chat.ipv6_unreachable", (Object[])new Object[0])));
+                    VoxLinkChat.print(iTextComponent.appendSibling((ITextComponent)textComponentString));
                 }
             });
         }

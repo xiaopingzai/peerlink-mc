@@ -50,7 +50,7 @@ public final class LogUploadManager {
         thread.setDaemon(true);
         return thread;
     });
-    private static final AtomicReference<String> ACTIVE_CODE = new AtomicReference<Object>(null);
+    private static final AtomicReference<String> ACTIVE_CODE = new AtomicReference<String>(null);
     private static final AtomicBoolean UPLOADED = new AtomicBoolean(false);
     private static final AtomicBoolean UPLOAD_IN_FLIGHT = new AtomicBoolean(false);
     private static volatile ScheduledFuture<?> uploadFuture;
@@ -214,12 +214,12 @@ public final class LogUploadManager {
     }
 
     private static void notifyUploadedInChat() {
-        Minecraft minecraft = Minecraft.func_71410_x();
-        if (minecraft == null || minecraft.field_71439_g == null) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft == null || minecraft.player == null) {
             return;
         }
-        minecraft.func_152344_a(() -> {
-            if (minecraft.field_71439_g == null) {
+        minecraft.addScheduledTask(() -> {
+            if (minecraft.player == null) {
                 return;
             }
             try {
@@ -324,7 +324,7 @@ public final class LogUploadManager {
     private static byte[] readLogTail() {
         byte[] byArray;
         RandomAccessFile randomAccessFile;
-        File file = new File(Minecraft.func_71410_x().field_71412_D, "logs/latest.log");
+        File file = new File(Minecraft.getMinecraft().gameDir, "logs/latest.log");
         if (!file.isFile()) {
             VoxLinkMod.LOGGER.info("[LogUpload] latest.log missing, skip");
             return null;
@@ -385,7 +385,7 @@ public final class LogUploadManager {
         String string3 = LogUploadManager.buildUrl(string);
         String string4 = LogUploadManager.sha256(byArray);
         long l = Math.max(0L, System.currentTimeMillis() - punchStartMs);
-        String string5 = Minecraft.func_71410_x().func_110432_I().func_111285_a();
+        String string5 = Minecraft.getMinecraft().getSession().getUsername();
         HashMap<String, String> hashMap = new HashMap<String, String>();
         hashMap.put("Content-Type", "application/octet-stream");
         hashMap.put("User-Agent", "Mozilla/5.0 (Java) VoxLink/1.1.9");

@@ -134,12 +134,12 @@ public class PeerServer {
     public static void refreshCache() {
         Object object;
         try {
-            object = Minecraft.func_71410_x();
+            object = Minecraft.getMinecraft();
             if (object != null) {
-                if (object.func_152345_ab()) {
-                    cachedGameVersion = object.func_175600_c();
+                if (object.isCallingFromMinecraftThread()) {
+                    cachedGameVersion = object.getVersion();
                 } else {
-                    object.func_152344_a(() -> PeerServer.lambda$refreshCache$2((Minecraft)object));
+                    object.addScheduledTask(() -> PeerServer.lambda$refreshCache$2((Minecraft)object));
                 }
             }
         }
@@ -200,7 +200,7 @@ public class PeerServer {
 
     private static /* synthetic */ void lambda$refreshCache$2(Minecraft minecraft) {
         try {
-            cachedGameVersion = minecraft.func_175600_c();
+            cachedGameVersion = minecraft.getVersion();
         }
         catch (Exception exception) {
             // empty catch block

@@ -28,7 +28,7 @@ public class StunCache {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static Path getCachePath() {
-        File file = Minecraft.func_71410_x().field_71412_D;
+        File file = Minecraft.getMinecraft().gameDir;
         File file2 = new File(file, "voxlink");
         if (!file2.exists()) {
             file2.mkdirs();
