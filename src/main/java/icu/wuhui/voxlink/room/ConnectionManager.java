@@ -814,7 +814,7 @@ public class ConnectionManager {
             }
         }
         String string3 = roomState.roomInfo.getNatType();
-        int n5 = StunDetector.isNatTypeSymmetric(string3);
+        boolean symmetric = StunDetector.isNatTypeSymmetric(string3);
         if (this.stunProbeResult != null && roomState.roomInfo.getClientId() != null) {
             object2 = null;
             n = 0;
@@ -831,13 +831,12 @@ public class ConnectionManager {
             }
         }
         object2 = udpHolePuncher;
-        n = n5;
         String string4 = string3;
         JsonObject jsonObject2 = jsonObject;
         RoomManager.RoomState roomState2 = roomState;
         String string5 = string;
         int n4 = n3;
-        CompletableFuture.supplyAsync(() -> this.lambda$sendHolepunchOffer$8((UdpHolePuncher)object2, string4, n != 0)).thenAccept(arg_0 -> this.lambda$sendHolepunchOffer$13(n != 0, string4, jsonObject2, (UdpHolePuncher)object2, roomState2, string5, n4, arg_0));
+        CompletableFuture.supplyAsync(() -> this.lambda$sendHolepunchOffer$8((UdpHolePuncher)object2, string4, symmetric)).thenAccept(arg_0 -> this.lambda$sendHolepunchOffer$13(symmetric, string4, jsonObject2, (UdpHolePuncher)object2, roomState2, string5, n4, arg_0));
     }
 
     public void handleHolePunchOffer(String string, JsonObject jsonObject) {
