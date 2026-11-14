@@ -89,5 +89,6 @@ peerlink-mc/
 ## 相关链接
 
 - 源码仓库：<https://github.com/xiaopingzai/peerlink-mc>
+- 官网：<https://xpz.fwh.is/peerlink-website/index.php>
 - Wiki：<https://github.com/xiaopingzai/peerlink-mc/wiki>
 - Modrinth 主页：<https://modrinth.com/user/xiaopingzai>
