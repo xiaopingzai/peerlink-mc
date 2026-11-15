@@ -20,7 +20,7 @@ compileJava {
 }
 
 minecraft {
-    version = "1.12.2-14.23.5.2860"
+    version = "1.12.2-14.23.5.2847"
     mappings = "stable_39"
     // The recovered sources still carry SRG method/field names (e.g. func_71410_x,
     // field_146294_l). A stock MDK with MCP mappings may need manual name

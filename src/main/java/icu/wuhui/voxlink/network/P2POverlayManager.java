@@ -362,7 +362,7 @@ public class P2POverlayManager {
                 }
                 if (this.seenSeq.size() > 1000) {
                     ArrayList<Map.Entry<String, Long>> sorted = new ArrayList<Map.Entry<String, Long>>(this.seenSeq.entrySet());
-                    sorted.sort(Comparator.comparingLong(Map.Entry::getValue));
+                    sorted.sort(Comparator.comparingLong((Map.Entry<String, Long> e) -> e.getValue()));
                     int n2 = this.seenSeq.size() - 1000;
                     for (int i = 0; i < n2; ++i) {
                         this.seenSeq.remove(sorted.get(i).getKey());
