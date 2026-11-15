@@ -1468,7 +1468,7 @@ public class ConnectionManager {
                 while (System.currentTimeMillis() < l) {
                     int n8 = 0;
                     int n9 = 0;
-                    for (CompletableFuture exception : arrayList3) {
+                    for (CompletableFuture<StunProbe.PublicMappedAddress[]> exception : arrayList3) {
                         if (!exception.isDone()) continue;
                         ++n8;
                         try {
@@ -1487,17 +1487,17 @@ public class ConnectionManager {
                         break;
                     }
                 }
-                String string3 = null;
+                String firstIp = null;
                 for (int i = 0; i < arrayList3.size(); ++i) {
                     try {
-                        StunProbe.PublicMappedAddress jsonObject2;
-                        StunProbe.PublicMappedAddress[] publicMappedAddressArray = ((CompletableFuture)arrayList3.get(i)).getNow(null);
+                        StunProbe.PublicMappedAddress fallbackAddr;
+                        StunProbe.PublicMappedAddress[] publicMappedAddressArray = ((CompletableFuture<StunProbe.PublicMappedAddress[]>)arrayList3.get(i)).getNow(null);
                         if (publicMappedAddressArray == null || publicMappedAddressArray[0] == null && publicMappedAddressArray[1] == null) continue;
-                        StunProbe.PublicMappedAddress publicMappedAddress = publicMappedAddressArray[0] != null && publicMappedAddressArray[0].ip().indexOf(58) < 0 ? publicMappedAddressArray[0] : (publicMappedAddressArray[1] != null && publicMappedAddressArray[1].ip().indexOf(58) < 0 ? publicMappedAddressArray[1] : (jsonObject2 = publicMappedAddressArray[0] != null ? publicMappedAddressArray[0] : publicMappedAddressArray[1]));
-                        if (jsonObject2 != null) {
-                            arrayList2.add(jsonObject2);
-                            if (string3 == null) {
-                                string3 = jsonObject2.ip();
+                        StunProbe.PublicMappedAddress publicMappedAddress = publicMappedAddressArray[0] != null && publicMappedAddressArray[0].ip().indexOf(58) < 0 ? publicMappedAddressArray[0] : (publicMappedAddressArray[1] != null && publicMappedAddressArray[1].ip().indexOf(58) < 0 ? publicMappedAddressArray[1] : (fallbackAddr = publicMappedAddressArray[0] != null ? publicMappedAddressArray[0] : publicMappedAddressArray[1]));
+                        if (fallbackAddr != null) {
+                            arrayList2.add(fallbackAddr);
+                            if (firstIp == null) {
+                                firstIp = publicMappedAddress.ip();
                             }
                         }
                         if (publicMappedAddressArray[0] == null || publicMappedAddressArray[1] == null || !ConnectionManager.sameIpFamily(publicMappedAddressArray[0].ip(), publicMappedAddressArray[1].ip()) || publicMappedAddressArray[0].port() == publicMappedAddressArray[1].port()) continue;
@@ -1582,7 +1582,7 @@ public class ConnectionManager {
                     if (bl2 && n4 != 0) {
                         jsonObject2.addProperty("hostMappedPortDelta", (Number)n4);
                     }
-                    jsonObject2.addProperty("hostMappedIp", string3);
+                    jsonObject2.addProperty("hostMappedIp", firstIp);
                     jsonObject2.addProperty("hostMappedPort", (Number)((StunProbe.PublicMappedAddress)arrayList2.get(0)).port());
                     if ((bl14 || roomState.roomInfo.isSameCgnat()) && (string4 = StunDetector.getLocalIpAddress()) != null && !string4.isEmpty()) {
                         jsonObject2.addProperty("hostLocalIp", string4);
@@ -1593,7 +1593,7 @@ public class ConnectionManager {
                         jsonArray.add((Number)((StunProbe.PublicMappedAddress)object32).port());
                     }
                     jsonObject2.add("hostMappedPorts", (JsonElement)jsonArray);
-                    VoxLinkMod.LOGGER.info("[HostPunchInfo] holepunch_mapped: {} ports={} (symmetric={})", new Object[]{string3, jsonArray, bl2});
+                    VoxLinkMod.LOGGER.info("[HostPunchInfo] holepunch_mapped: {} ports={} (symmetric={})", new Object[]{firstIp, jsonArray, bl2});
                     this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), true, "holepunch_mapped", jsonObject2, string8).exceptionally(throwable -> {
                         VoxLinkMod.LOGGER.debug("holepunch_mapped send failed: {}", (Object)throwable.getMessage());
                         return null;
@@ -1605,12 +1605,12 @@ public class ConnectionManager {
                     object32 = new AtomicBoolean(false);
                     for (UdpHolePuncher udpHolePuncher2 : arrayList) {
                         udpHolePuncher2.setOnPeerPunchReceived(inetSocketAddress -> {
-                            String string2 = roomState.roomInfo.getCode();
-                            String string3 = roomState.roomInfo.getToken();
-                            JsonObject jsonObject = new JsonObject();
-                            jsonObject.addProperty("peer_ip", inetSocketAddress.getAddress().getHostAddress());
-                            jsonObject.addProperty("peer_port", (Number)inetSocketAddress.getPort());
-                            this.signalingClient.sendSignal(string2, string3, true, "peer_port", jsonObject, string8).exceptionally(throwable -> {
+                            String roomCode = roomState.roomInfo.getCode();
+                            String roomToken = roomState.roomInfo.getToken();
+                            JsonObject payload = new JsonObject();
+                            payload.addProperty("peer_ip", inetSocketAddress.getAddress().getHostAddress());
+                            payload.addProperty("peer_port", (Number)inetSocketAddress.getPort());
+                            this.signalingClient.sendSignal(roomCode, roomToken, true, "peer_port", payload, string8).exceptionally(throwable -> {
                                 VoxLinkMod.LOGGER.debug("peer_port signal failed: {}", (Object)throwable.getMessage());
                                 return null;
                             });
@@ -1646,7 +1646,7 @@ public class ConnectionManager {
                                     l4 = l6;
                                     try {
                                         JsonObject jsonObject3 = new JsonObject();
-                                        jsonObject3.addProperty("hostMappedIp", string3);
+                                        jsonObject3.addProperty("hostMappedIp", firstIp);
                                         jsonObject3.addProperty("hostMappedPort", (Number)((StunProbe.PublicMappedAddress)arrayList2.get(0)).port());
                                         jsonObject3.addProperty("hostSymmetric", Boolean.valueOf(true));
                                         JsonArray jsonArray2 = new JsonArray();
@@ -1661,7 +1661,7 @@ public class ConnectionManager {
                                             VoxLinkMod.LOGGER.debug("holepunch_mapped resync send failed: {}", (Object)throwable.getMessage());
                                             return null;
                                         });
-                                        VoxLinkMod.LOGGER.info("[HostPunchInfo] drift resync: resend holepunch_mapped {}:{} ports={} (elapsed={}ms)", new Object[]{string3, ((StunProbe.PublicMappedAddress)arrayList2.get(0)).port(), jsonArray2, l7});
+                                        VoxLinkMod.LOGGER.info("[HostPunchInfo] drift resync: resend holepunch_mapped {}:{} ports={} (elapsed={}ms)", new Object[]{firstIp, ((StunProbe.PublicMappedAddress)arrayList2.get(0)).port(), jsonArray2, l7});
                                     }
                                     catch (Exception exception) {
                                         // empty catch block
