@@ -1,0 +1,14 @@
+[
+  {
+    "modid": "voxlink",
+    "name": "VoxLink",
+    "description": "VoxLink P2P multiplayer for Minecraft 1.11.x (Forge). Room-code based NAT traversal using the official signaling server https://p2p.wuhui.icu",
+    "version": "1.1.8",
+    "mcversion": "1.11x",
+    "url": "https://p2p.wuhui.icu",
+    "credits": "VoxLink",
+    "authors": ["VoxLink"],
+    "logoFile": "icon.png",
+    "dependencies": []
+  }
+]

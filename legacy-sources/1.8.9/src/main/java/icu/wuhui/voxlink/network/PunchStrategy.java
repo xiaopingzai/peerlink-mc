@@ -1,0 +1,16 @@
+/*
+ * Decompiled with CFR 0.152.
+ */
+package icu.wuhui.voxlink.network;
+
+public enum PunchStrategy {
+    DIRECT_ONLY,
+    DIRECT_WITH_REVERSE_PARALLEL,
+    REVERSE_FIRST,
+    RELAY_FALLBACK_FAST,
+    REVERSE_ONLY,
+    PARALLEL_FROM_START,
+    REVERSE_THEN_FORWARD;
+
+}
+
