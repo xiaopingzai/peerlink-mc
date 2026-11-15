@@ -497,30 +497,26 @@ implements AutoCloseable {
             }
             if (n6 == 3 && n4 >= 0) {
                 byte[] byArray2;
-                Object object;
-                Object object2;
-                Object object3 = (byte[])byArray.clone();
-                Iterator iterator = map.entrySet().iterator();
+                byte[] xorBuf = (byte[])byArray.clone();
+                Iterator<Map.Entry> iterator = map.entrySet().iterator();
                 while (iterator.hasNext()) {
-                    object = object2 = iterator.next();
-                    byArray2 = (byte[])object.getValue();
-                    int n8 = Math.min(((byte[])object3).length, byArray2.length);
+                    Map.Entry entry = iterator.next();
+                    byArray2 = (byte[])entry.getValue();
+                    int n8 = Math.min(xorBuf.length, byArray2.length);
                     for (int i = 0; i < n8; ++i) {
-                        int n9 = i;
-                        object3[n9] = (byte)(object3[n9] ^ byArray2[i]);
+                        xorBuf[i] = (byte)(xorBuf[i] ^ byArray2[i]);
                     }
                 }
-                n2 = n5 < nArray.length ? nArray[n5] : ((byte[])object3).length;
-                int n10 = n2;
-                if (n2 < ((byte[])object3).length) {
-                    object2 = new byte[n2];
-                    System.arraycopy(object3, 0, object2, 0, n2);
-                    object3 = object2;
+                n2 = n5 < nArray.length ? nArray[n5] : xorBuf.length;
+                if (n2 < xorBuf.length) {
+                    byte[] trimmed = new byte[n2];
+                    System.arraycopy(xorBuf, 0, trimmed, 0, n2);
+                    xorBuf = trimmed;
                 }
-                object = object2 = this.recvLock;
-                synchronized (object) {
+                Object lock = this.recvLock;
+                synchronized (lock) {
                     if (this.bufferedChunks < 512) {
-                        this.recvBuffer.put(n4, (byte[])object3);
+                        this.recvBuffer.put(n4, xorBuf);
                     }
                     while (this.bufferedChunks < 512 && this.recvBuffer.containsKey(this.nextExpectedSeq.get())) {
                         byArray2 = this.recvBuffer.remove(this.nextExpectedSeq.get());
@@ -543,22 +539,20 @@ implements AutoCloseable {
     }
 
     private static byte[] computeXorPayload(List<byte[]> list) {
-        Object object2;
         int n = 0;
-        for (Object object2 : list) {
-            if (((byte[])object2).length <= n) continue;
-            n = ((Object)object2).length;
+        for (byte[] chunk : list) {
+            if (chunk.length <= n) continue;
+            n = chunk.length;
         }
-        Object object3 = new byte[n];
-        object2 = list.iterator();
-        while (object2.hasNext()) {
-            byte[] byArray = (byte[])object2.next();
+        byte[] xorBuf = new byte[n];
+        Iterator<byte[]> it = list.iterator();
+        while (it.hasNext()) {
+            byte[] byArray = it.next();
             for (int i = 0; i < byArray.length; ++i) {
-                int n2 = i;
-                object3[n2] = (byte)(object3[n2] ^ byArray[i]);
+                xorBuf[i] = (byte)(xorBuf[i] ^ byArray[i]);
             }
         }
-        return object3;
+        return xorBuf;
     }
 
     private void handleAck(int n) {
@@ -885,17 +879,17 @@ implements AutoCloseable {
      */
     @Override
     public void close() {
-        Object object;
+        byte[] closePacket;
         if (!this.closed.compareAndSet(false, true)) return;
         this.running = false;
         this.connected.set(false);
         try {
-            object = new byte[11];
-            System.arraycopy(MAGIC, 0, object, 0, 2);
-            object[2] = 7;
-            ReliableUdpTransport.writeInt32(object, 3, 0);
-            ReliableUdpTransport.writeInt32(object, 7, 0);
-            this.socket.send(new DatagramPacket((byte[])object, ((byte[])object).length, this.remoteAddress));
+            closePacket = new byte[11];
+            System.arraycopy(MAGIC, 0, closePacket, 0, 2);
+            closePacket[2] = 7;
+            ReliableUdpTransport.writeInt32(closePacket, 3, 0);
+            ReliableUdpTransport.writeInt32(closePacket, 7, 0);
+            this.socket.send(new DatagramPacket(closePacket, closePacket.length, this.remoteAddress));
         }
         catch (IOException iOException) {
             // empty catch block
@@ -907,12 +901,11 @@ implements AutoCloseable {
             this.keepaliveTask.cancel(false);
         }
         this.scheduler.shutdownNow();
-        Object object2 = object = (Object)this.recvLock;
-        synchronized (object) {
+        Object lock = this.recvLock;
+        synchronized (lock) {
             this.recvLock.notifyAll();
-            // ** MonitorExit[var2_3 /* !! */ ] (shouldn't be in output)
-            object2 = object = (Object)this.sendLock;
-            synchronized (object) {
+            Object sendLock = this.sendLock;
+            synchronized (sendLock) {
                 this.sendLock.notifyAll();
                 // ** MonitorExit[var2_3 /* !! */ ] (shouldn't be in output)
                 if (this.recvThread != null) {
@@ -1072,7 +1065,7 @@ implements AutoCloseable {
                 if (this.currentChunk != null) {
                     n += this.currentChunk.length - this.currentPos;
                 }
-                for (byte[] byArray : (byte[][])this.chunks.toArray((T[])new byte[0][])) {
+                for (byte[] byArray : this.chunks) {
                     n += byArray.length;
                 }
                 return n;

@@ -495,7 +495,7 @@ public class StunProbe {
             }
         }
         CountDownLatch countDownLatch = new CountDownLatch(2);
-        for (CompletableFuture completableFuture : arrayList2) {
+        for (CompletableFuture<StunServerResult> completableFuture : arrayList2) {
             completableFuture.whenComplete((stunServerResult, throwable) -> {
                 if (stunServerResult != null && stunServerResult.reachable) {
                     countDownLatch.countDown();
@@ -509,7 +509,7 @@ public class StunProbe {
             Thread.currentThread().interrupt();
         }
         ArrayList<StunServerResult> arrayList = new ArrayList<StunServerResult>();
-        for (CompletableFuture completableFuture : arrayList2) {
+        for (CompletableFuture<StunServerResult> completableFuture : arrayList2) {
             try {
                 arrayList.add(completableFuture.getNow(new StunServerResult("", "", 0, false, -1L, null, 0)));
             }
@@ -530,7 +530,7 @@ public class StunProbe {
      */
     private static StunServerResult probeSingleServer(String string) {
         StunServerResult stunServerResult;
-        Object object;
+        byte[] request;
         ParsedStunUrl parsedStunUrl = StunProbe.parseStunUrl(string);
         if (parsedStunUrl == null) {
             return new StunServerResult(string, false, -1L, null);
@@ -540,9 +540,9 @@ public class StunProbe {
             InetAddress inetAddress = InetAddress.getByName(parsedStunUrl.host);
             datagramSocket = new DatagramSocket();
             datagramSocket.setSoTimeout(8000);
-            object = StunProbe.createBindingRequest();
+            request = StunProbe.createBindingRequest();
             long l = System.nanoTime();
-            DatagramPacket datagramPacket = new DatagramPacket((byte[])object, ((byte[])object).length, inetAddress, parsedStunUrl.port);
+            DatagramPacket datagramPacket = new DatagramPacket(request, request.length, inetAddress, parsedStunUrl.port);
             datagramSocket.send(datagramPacket);
             byte[] byArray = new byte[576];
             DatagramPacket datagramPacket2 = new DatagramPacket(byArray, byArray.length);
@@ -550,7 +550,7 @@ public class StunProbe {
             long l2 = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - l);
             byte[] byArray2 = new byte[datagramPacket2.getLength()];
             System.arraycopy(datagramPacket2.getData(), 0, byArray2, 0, datagramPacket2.getLength());
-            MappedAddress mappedAddress = StunProbe.parseBindingResponse(byArray2, object);
+            MappedAddress mappedAddress = StunProbe.parseBindingResponse(byArray2, request);
             if (mappedAddress != null) {
                 StunServerResult stunServerResult2;
                 VoxLinkMod.LOGGER.debug("[StunProbe] {} reachable, latency={}ms, mapped={}:{}", new Object[]{string, l2, mappedAddress.ip, mappedAddress.port});
@@ -562,8 +562,7 @@ public class StunProbe {
         }
         catch (Exception exception) {
             VoxLinkMod.LOGGER.debug("[StunProbe] {} unreachable: {}", (Object)string, (Object)exception.getMessage());
-            Object object2 = object = (Object)new StunServerResult(string, parsedStunUrl.host, parsedStunUrl.port, false, -1L, null, 0);
-            return object2;
+            return new StunServerResult(string, parsedStunUrl.host, parsedStunUrl.port, false, -1L, null, 0);
         }
         finally {
             if (datagramSocket != null) {
@@ -656,32 +655,32 @@ public class StunProbe {
         DatagramSocket datagramSocket = null;
         try {
             byte[] byArray;
-            Object object;
+            DatagramPacket packet;
             int n;
-            Object object2;
+            InetAddress addr1;
+            NatType rfcNat;
             StunServerResult stunServerResult22;
             DatagramPacket datagramPacket = null;
             int n2 = 0;
             datagramSocket = new DatagramSocket();
             datagramSocket.setSoTimeout(8000);
             int n3 = 0;
-            for (StunServerResult stunServerResult22 : list2) {
+            for (StunServerResult result : list2) {
                 if (n3 >= 3) break;
                 ++n3;
-                object2 = StunProbe.detectNatTypeWithRfc5780(datagramSocket, stunServerResult22.host, stunServerResult22.port, stunServerResult22.port + 1);
-                if (object2 == null) continue;
-                VoxLinkMod.LOGGER.info("[StunProbe] RFC5780 determined: {} -> {}", (Object)stunServerResult22.url, (Object)object2.key);
-                Object object3 = object2;
-                return object3;
+                rfcNat = StunProbe.detectNatTypeWithRfc5780(datagramSocket, result.host, result.port, result.port + 1);
+                if (rfcNat == null) continue;
+                VoxLinkMod.LOGGER.info("[StunProbe] RFC5780 determined: {} -> {}", (Object)result.url, (Object)rfcNat.key);
+                return rfcNat;
             }
             VoxLinkMod.LOGGER.info("[StunProbe] RFC5780 all failed ({} tried), fallback to two-server delta method", (Object)n3);
             StunServerResult stunServerResult3 = (StunServerResult)list2.get(0);
             stunServerResult22 = (StunServerResult)list2.get(1);
-            object2 = InetAddress.getByName(stunServerResult3.host);
+            addr1 = InetAddress.getByName(stunServerResult3.host);
             InetAddress inetAddress = InetAddress.getByName(stunServerResult22.host);
             byte[] byArray2 = StunProbe.createBindingRequest();
             byte[] byArray3 = StunProbe.createBindingRequest();
-            datagramSocket.send(new DatagramPacket(byArray2, byArray2.length, (InetAddress)object2, stunServerResult3.port));
+            datagramSocket.send(new DatagramPacket(byArray2, byArray2.length, addr1, stunServerResult3.port));
             datagramSocket.send(new DatagramPacket(byArray3, byArray3.length, inetAddress, stunServerResult22.port));
             MappedAddress mappedAddress = null;
             MappedAddress mappedAddress2 = null;
@@ -689,15 +688,15 @@ public class StunProbe {
             long l = System.currentTimeMillis() + 8000L;
             for (n = 0; n < 2 && System.currentTimeMillis() < l; ++n) {
                 MappedAddress mappedAddress3;
-                object = new DatagramPacket(byArray4, byArray4.length);
+                packet = new DatagramPacket(byArray4, byArray4.length);
                 try {
-                    datagramSocket.receive((DatagramPacket)object);
+                    datagramSocket.receive(packet);
                 }
                 catch (SocketTimeoutException socketTimeoutException) {
                     break;
                 }
-                byArray = new byte[((DatagramPacket)object).getLength()];
-                System.arraycopy(((DatagramPacket)object).getData(), 0, byArray, 0, ((DatagramPacket)object).getLength());
+                byArray = new byte[packet.getLength()];
+                System.arraycopy(packet.getData(), 0, byArray, 0, packet.getLength());
                 if (mappedAddress == null) {
                     mappedAddress3 = StunProbe.parseBindingResponse(byArray, byArray2);
                     if (mappedAddress3 != null) {
@@ -731,8 +730,8 @@ public class StunProbe {
             n = 0;
             for (int i = 1; i <= 3 && n == 0 && (n2 = stunServerResult3.port + i) <= 65535; ++i) {
                 try {
-                    object = StunProbe.createBindingRequest();
-                    datagramSocket.send(new DatagramPacket((byte[])object, ((Object)object).length, (InetAddress)object2, n2));
+                    byte[] altRequest = StunProbe.createBindingRequest();
+                    datagramSocket.send(new DatagramPacket(altRequest, altRequest.length, addr1, n2));
                     datagramPacket = new DatagramPacket(byArray4, byArray4.length);
                     try {
                         datagramSocket.receive(datagramPacket);
@@ -742,7 +741,7 @@ public class StunProbe {
                     }
                     byArray = new byte[datagramPacket.getLength()];
                     System.arraycopy(datagramPacket.getData(), 0, byArray, 0, datagramPacket.getLength());
-                    MappedAddress mappedAddress4 = StunProbe.parseBindingResponse(byArray, (byte[])object);
+                    MappedAddress mappedAddress4 = StunProbe.parseBindingResponse(byArray, altRequest);
                     if (mappedAddress4 == null) continue;
                     VoxLinkMod.LOGGER.info("[StunProbe] Same-server alt-port {}:{} mapped {}:{}", new Object[]{stunServerResult3.host, n2, mappedAddress4.ip, mappedAddress4.port});
                     if (mappedAddress4.port == mappedAddress.port) continue;
