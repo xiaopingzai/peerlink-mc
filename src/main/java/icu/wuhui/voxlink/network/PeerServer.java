@@ -132,14 +132,14 @@ public class PeerServer {
     }
 
     public static void refreshCache() {
-        Object object;
+        Minecraft mc;
         try {
-            object = Minecraft.getMinecraft();
-            if (object != null) {
-                if (object.isCallingFromMinecraftThread()) {
-                    cachedGameVersion = object.getVersion();
+            mc = Minecraft.getMinecraft();
+            if (mc != null) {
+                if (mc.isCallingFromMinecraftThread()) {
+                    cachedGameVersion = mc.getVersion();
                 } else {
-                    object.addScheduledTask(() -> PeerServer.lambda$refreshCache$2((Minecraft)object));
+                    mc.addScheduledTask(() -> PeerServer.lambda$refreshCache$2(mc));
                 }
             }
         }
@@ -153,14 +153,14 @@ public class PeerServer {
             LOGGER.debug("Failed to get protocol version: {}", (Object)exception.getMessage());
         }
         try {
-            object = new ArrayList();
+            List<Map<String, String>> mods = new ArrayList<Map<String, String>>();
             for (ModContainer modContainer : Loader.instance().getActiveModList()) {
                 LinkedHashMap<String, String> linkedHashMap = new LinkedHashMap<String, String>();
                 linkedHashMap.put("id", modContainer.getModId());
                 linkedHashMap.put("version", modContainer.getVersion());
-                ((ArrayList)object).add(linkedHashMap);
+                mods.add(linkedHashMap);
             }
-            cachedMods = Collections.unmodifiableList(object);
+            cachedMods = Collections.unmodifiableList(mods);
         }
         catch (Exception exception) {
             LOGGER.debug("Failed to get mod list: {}", (Object)exception.getMessage());

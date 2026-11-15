@@ -173,8 +173,8 @@ public final class LogUploadManager {
             }
             boolean bl = false;
             if (apiResponse != null && apiResponse.success && apiResponse.data != null && apiResponse.data.has("opponent")) {
-                JsonObject jsonObject = apiResponse.data.getAsJsonObject("opponent");
-                bl = jsonObject.has("uploaded") && jsonObject.get("uploaded").getAsBoolean();
+                JsonObject opponent = apiResponse.data.getAsJsonObject("opponent");
+                bl = opponent.has("uploaded") && opponent.get("uploaded").getAsBoolean();
                 boolean bl2 = bl;
             }
             if (bl) {

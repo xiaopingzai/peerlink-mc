@@ -112,7 +112,7 @@ public class RelayBridge {
     }
 
     private void monitorRelays() {
-        ArrayList arrayList = new ArrayList();
+        ArrayList<String> arrayList = new ArrayList<String>();
         this.activeRelays.entrySet().removeIf(entry -> {
             RelaySession relaySession = (RelaySession)entry.getValue();
             if (relaySession.transportA.isConnected() && relaySession.transportB.isConnected()) {
