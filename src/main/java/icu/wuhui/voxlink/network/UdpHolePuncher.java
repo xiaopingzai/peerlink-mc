@@ -239,9 +239,9 @@ public class UdpHolePuncher {
     }
 
     public CompletableFuture<PunchResult> punchMultiSocket(String string, int n, List<UdpHolePuncher> list, AtomicBoolean atomicBoolean, int n2) {
-        Object object;
-        Object object2;
-        Object object3;
+        InetAddress localAddr;
+        DatagramSocket sock;
+        UdpHolePuncher peer;
         this.punching.set(true);
         this.holeOpen.set(false);
         this.remoteReceived.set(false);
@@ -273,29 +273,29 @@ public class UdpHolePuncher {
         try {
             selector = Selector.open();
             for (int i = 0; i < list.size(); ++i) {
-                object3 = list.get(i);
-                object2 = ((UdpHolePuncher)object3).getSocket();
-                if (object2 == null || ((DatagramSocket)object2).isClosed()) continue;
-                DatagramChannel datagramChannel = ((DatagramSocket)object2).getChannel();
+                peer = list.get(i);
+                sock = peer.getSocket();
+                if (sock == null || sock.isClosed()) continue;
+                DatagramChannel datagramChannel = sock.getChannel();
                 if (datagramChannel == null) {
-                    object = ((DatagramSocket)object2).getLocalAddress();
-                    int bl = ((DatagramSocket)object2).getLocalPort();
+                    localAddr = sock.getLocalAddress();
+                    int bl = sock.getLocalPort();
                     try {
-                        ((DatagramSocket)object2).close();
+                        sock.close();
                     }
                     catch (Exception thread) {
                         // empty catch block
                     }
                     datagramChannel = DatagramChannel.open();
                     datagramChannel.configureBlocking(false);
-                    datagramChannel.bind(new InetSocketAddress((InetAddress)object, bl));
-                    ((UdpHolePuncher)object3).replaceSocket(datagramChannel.socket());
+                    datagramChannel.bind(new InetSocketAddress(localAddr, bl));
+                    peer.replaceSocket(datagramChannel.socket());
                 } else {
                     datagramChannel.configureBlocking(false);
                 }
                 datagramChannel.register(selector, 1);
                 arrayList.add(datagramChannel);
-                hashMap.put(datagramChannel, object3);
+                hashMap.put(datagramChannel, peer);
                 hashMap2.put(datagramChannel, i);
             }
         }
@@ -304,25 +304,20 @@ public class UdpHolePuncher {
             return this.punchMultiSocketLegacy(string, n, list, atomicBoolean);
         }
         Selector selector2 = selector;
-        object3 = hashMap;
-        object2 = hashMap2;
         int n5 = this.sessionNonce;
-        object = new Thread(() -> this.lambda$punchMultiSocket$1(selector2, (HashMap)object3, (HashMap)object2, nArray, object4, atomicBoolean, l, completableFuture, n3, nArray2, consumer), "VoxLink-PunchRecvNIO");
-        ((Thread)object).setDaemon(true);
-        this.recvThreadsRef = Collections.singletonList(object);
-        ((Thread)object).start();
+        Thread recvThread = new Thread(() -> this.lambda$punchMultiSocket$1(selector2, hashMap, hashMap2, nArray, object4, atomicBoolean, l, completableFuture, n3, nArray2, consumer), "VoxLink-PunchRecvNIO");
+        recvThread.setDaemon(true);
+        this.recvThreadsRef = Collections.singletonList(recvThread);
+        recvThread.start();
         boolean bl = list.size() <= 1 || this.skipFirewallDetection;
         Thread thread = new Thread(() -> {
-            int n4;
+            int cycle;
             long l2 = System.currentTimeMillis();
-            for (n4 = 0; this.punching.get() && !this.holeOpen.get() && n4 < n4; ++n4) {
-                Object object2;
-                Object object3;
-                if (!bl && n4 >= this.profile().firewallDetectCycles && !this.remoteReceived.get()) {
+            for (cycle = 0; this.punching.get() && !this.holeOpen.get() && cycle < n4; ++cycle) {
+                if (!bl && cycle >= this.profile().firewallDetectCycles && !this.remoteReceived.get()) {
                     long l3 = System.currentTimeMillis() - l2;
-                    LOGGER.warn("[UdpHolePuncher] Multi-socket firewall check: sent {} cycles/{}ms no reply, UDP blocked, abort early", (Object)n4, (Object)l3);
-                    object2 = object3 = object4;
-                    synchronized (object2) {
+                    LOGGER.warn("[UdpHolePuncher] Multi-socket firewall check: sent {} cycles/{}ms no reply, UDP blocked, abort early", (Object)cycle, (Object)l3);
+                    synchronized (object4) {
                         if (this.completed.compareAndSet(false, true)) {
                             this.punching.set(false);
                             completableFuture.complete(PunchResult.failure(n3, nArray[0], nArray2[0], 0, l3, true));
@@ -330,16 +325,16 @@ public class UdpHolePuncher {
                         return;
                     }
                 }
-                int n5 = n3 > 0 ? n3 * 2 + 1 : 0;
+                int portSpread = n3 > 0 ? n3 * 2 + 1 : 0;
                 int n6 = 0;
-                object3 = list.iterator();
-                while (object3.hasNext()) {
-                    object2 = (UdpHolePuncher)object3.next();
-                    DatagramSocket datagramSocket = ((UdpHolePuncher)object2).getSocket();
+                Iterator<UdpHolePuncher> it = list.iterator();
+                while (it.hasNext()) {
+                    UdpHolePuncher peer2 = it.next();
+                    DatagramSocket datagramSocket = peer2.getSocket();
                     if (datagramSocket == null || datagramSocket.isClosed()) continue;
                     int n7 = this.remotePort;
                     if (n3 > 0) {
-                        n7 = this.remotePort + (n6++ % n5 - n3);
+                        n7 = this.remotePort + (n6++ % portSpread - n3);
                     }
                     for (int i = 0; i < 3; ++i) {
                         DatagramPacket datagramPacket = new DatagramPacket(byArray, byArray.length, this.remoteAddress, n7);
@@ -355,11 +350,9 @@ public class UdpHolePuncher {
                     break;
                 }
             }
-            LOGGER.info("[UdpHolePuncher] Multi-socket send end: cycles={}, holeOpen={}", (Object)n4, (Object)this.holeOpen.get());
+            LOGGER.info("[UdpHolePuncher] Multi-socket send end: cycles={}, holeOpen={}", (Object)cycle, (Object)this.holeOpen.get());
             if (!this.holeOpen.get() && this.punching.get()) {
-                Object object4;
-                Object object5 = object4 = object4;
-                synchronized (object5) {
+                synchronized (object4) {
                     if (this.completed.compareAndSet(false, true)) {
                         this.punching.set(false);
                         long l4 = System.currentTimeMillis() - l;
@@ -373,9 +366,7 @@ public class UdpHolePuncher {
         thread.start();
         ScheduledFuture<?> scheduledFuture = UdpHolePuncher.scheduler().schedule(() -> {
             if (this.punching.get()) {
-                Object object2;
-                Object object3 = object2 = object4;
-                synchronized (object3) {
+                synchronized (object4) {
                     if (this.completed.compareAndSet(false, true)) {
                         this.punching.set(false);
                         long l2 = System.currentTimeMillis() - l;
@@ -560,7 +551,7 @@ public class UdpHolePuncher {
             this.recvThreadsRef = Collections.singletonList(thread);
             thread.start();
             Thread thread2 = new Thread(() -> {
-                Object object2;
+                Iterator<Integer> portIt;
                 int n2;
                 int n3 = this.effectiveTimeoutMs() / this.effectiveSendInterval();
                 long l2 = System.currentTimeMillis();
@@ -571,9 +562,9 @@ public class UdpHolePuncher {
                         long l3 = System.currentTimeMillis() - l2;
                         LOGGER.debug("[UdpHolePuncher] Multi-port no reply after {} cycles/{}ms, continue until timeout (peer may be offline)", (Object)n2, (Object)l3);
                     }
-                    object2 = list.iterator();
-                    while (object2.hasNext()) {
-                        int n4 = (Integer)object2.next();
+                    portIt = list.iterator();
+                    while (portIt.hasNext()) {
+                        int n4 = portIt.next();
                         DatagramPacket datagramPacket = new DatagramPacket(byArray, byArray.length, this.remoteAddress, n4);
                         UdpHolePuncher.sendPkt(this.socket, datagramPacket);
                     }
@@ -588,8 +579,7 @@ public class UdpHolePuncher {
                 }
                 LOGGER.info("[UdpHolePuncher] Multi-port send thread end: cycles={}, holeOpen={}, punching={}", new Object[]{n2, this.holeOpen.get(), this.punching.get()});
                 if (!this.holeOpen.get() && this.punching.get()) {
-                    Object object3 = object2 = object;
-                    synchronized (object3) {
+                    synchronized (object) {
                         if (this.completed.compareAndSet(false, true)) {
                             this.punching.set(false);
                             long l4 = System.currentTimeMillis() - l;
@@ -646,25 +636,24 @@ public class UdpHolePuncher {
         Thread thread = new Thread(() -> {
             byte[] byArray = new byte[64];
             DatagramPacket datagramPacket = new DatagramPacket(byArray, byArray.length);
-            boolean bl = false;
-            int n = 0;
+            boolean notified = false;
+            int recvCount = 0;
             while (this.punching.get() && !this.holeOpen.get()) {
                 try {
                     Object object2;
                     this.socket.receive(datagramPacket);
-                    if (++n <= 10) {
-                        LOGGER.info("[UdpHolePuncher] Received #{}: from {}:{}, len={}, bytes=[{},{},{}]", new Object[]{n, datagramPacket.getAddress().getHostAddress(), datagramPacket.getPort(), datagramPacket.getLength(), datagramPacket.getLength() > 0 ? byArray[0] & 0xFF : -1, datagramPacket.getLength() > 1 ? byArray[1] & 0xFF : -1, datagramPacket.getLength() > 2 ? byArray[2] & 0xFF : -1});
+                    if (++recvCount <= 10) {
+                        LOGGER.info("[UdpHolePuncher] Received #{}: from {}:{}, len={}, bytes=[{},{},{}]", new Object[]{recvCount, datagramPacket.getAddress().getHostAddress(), datagramPacket.getPort(), datagramPacket.getLength(), datagramPacket.getLength() > 0 ? byArray[0] & 0xFF : -1, datagramPacket.getLength() > 1 ? byArray[1] & 0xFF : -1, datagramPacket.getLength() > 2 ? byArray[2] & 0xFF : -1});
                     }
                     if (datagramPacket.getLength() < 3 || byArray[0] != MAGIC[0] || byArray[1] != MAGIC[1] || !this.acceptPacket(byArray, datagramPacket)) continue;
                     byte by = byArray[2];
                     if ((by == 1 || by == 2) && this.remoteAddress != null) {
-                        boolean bl2 = !this.completed.get() || by == 1;
-                        boolean bl3 = bl2;
-                        if (bl2 && datagramPacket.getPort() != this.remotePort) {
+                        boolean accept = !this.completed.get() || by == 1;
+                        if (accept && datagramPacket.getPort() != this.remotePort) {
                             LOGGER.info("[UdpHolePuncher] Accept from {}:{} (expected port {})", new Object[]{datagramPacket.getAddress().getHostAddress(), datagramPacket.getPort(), this.remotePort});
                             this.remotePort = datagramPacket.getPort();
-                            if (!bl && consumer != null) {
-                                bl = true;
+                            if (!notified && consumer != null) {
+                                notified = true;
                                 try {
                                     consumer.accept(new InetSocketAddress(datagramPacket.getAddress(), datagramPacket.getPort()));
                                 }
@@ -827,8 +816,8 @@ public class UdpHolePuncher {
         }
         ArrayList<Object> arrayList2 = arrayList;
         object2 = new ArrayList();
-        for (Object object3 : arrayList) {
-            ((ArrayList)object2).add(((UdpHolePuncher)object3).punchWithPortPrediction(string, n, this.profile().easySymDualPortRange, true));
+        for (Object peer : arrayList) {
+            ((ArrayList)object2).add(((UdpHolePuncher)peer).punchWithPortPrediction(string, n, this.profile().easySymDualPortRange, true));
         }
         CompletableFuture completableFuture = new CompletableFuture();
         object3 = new AtomicInteger(((ArrayList)object2).size());
@@ -1104,7 +1093,7 @@ public class UdpHolePuncher {
     }
 
     private CompletableFuture<PunchResult> punchMultiSocketLegacy(String string, int n, List<UdpHolePuncher> list, AtomicBoolean atomicBoolean) {
-        Object object;
+        UdpHolePuncher peer;
         int n2;
         CompletableFuture<PunchResult> completableFuture = new CompletableFuture<PunchResult>();
         this.activeResult = completableFuture;
@@ -1120,9 +1109,9 @@ public class UdpHolePuncher {
         LOGGER.info("[UdpHolePuncher] Multi-socket send start (Legacy): target={}:{}, sockets={}, profile={}", new Object[]{string, n, list.size(), this.profile().describeInstance()});
         ArrayList<Thread> arrayList = new ArrayList<Thread>();
         for (n2 = 0; n2 < list.size(); ++n2) {
-            object = list.get(n2);
+            peer = list.get(n2);
             int n5 = n2;
-            DatagramSocket datagramSocket = ((UdpHolePuncher)object).getSocket();
+            DatagramSocket datagramSocket = peer.getSocket();
             if (datagramSocket == null || datagramSocket.isClosed()) continue;
             try {
                 datagramSocket.setSoTimeout(this.profile().send.socketTimeoutMs);
@@ -1130,7 +1119,7 @@ public class UdpHolePuncher {
             catch (Exception exception) {
                 // empty catch block
             }
-            Thread thread = new Thread(() -> this.lambda$punchMultiSocketLegacy$11(datagramSocket, nArray, (UdpHolePuncher)object, object2, atomicBoolean, n5, l, completableFuture, n3, nArray2, consumer), "VoxLink-PunchRecv-Legacy-" + n2);
+            Thread thread = new Thread(() -> this.lambda$punchMultiSocketLegacy$11(datagramSocket, nArray, peer, object2, atomicBoolean, n5, l, completableFuture, n3, nArray2, consumer), "VoxLink-PunchRecv-Legacy-" + n2);
             thread.setDaemon(true);
             arrayList.add(thread);
             this.recvThreadsRef = arrayList;
@@ -1138,15 +1127,13 @@ public class UdpHolePuncher {
         }
         this.recvThreadsRef = arrayList.isEmpty() ? null : arrayList;
         n2 = list.size() <= 1 || this.skipFirewallDetection ? 1 : 0;
-        object = new Thread(() -> this.lambda$punchMultiSocketLegacy$12(n4, n2 != 0, object2, completableFuture, n3, nArray, nArray2, list, byArray, l), "VoxLink-PunchSend-Legacy");
-        ((Thread)object).setDaemon(true);
-        this.sendThreadRef = object;
-        ((Thread)object).start();
+        Thread sendThread = new Thread(() -> this.lambda$punchMultiSocketLegacy$12(n4, n2 != 0, object2, completableFuture, n3, nArray, nArray2, list, byArray, l), "VoxLink-PunchSend-Legacy");
+        sendThread.setDaemon(true);
+        this.sendThreadRef = sendThread;
+        sendThread.start();
         ScheduledFuture<?> scheduledFuture = UdpHolePuncher.scheduler().schedule(() -> {
             if (this.punching.get()) {
-                Object object2;
-                Object object3 = object2 = object2;
-                synchronized (object3) {
+                synchronized (object2) {
                     if (this.completed.compareAndSet(false, true)) {
                         this.punching.set(false);
                         long l2 = System.currentTimeMillis() - l;
@@ -1179,12 +1166,13 @@ public class UdpHolePuncher {
                     return;
                 }
             }
-            for (UdpHolePuncher udpHolePuncher : list) {
-                object2 = udpHolePuncher.getSocket();
-                if (object2 == null || ((DatagramSocket)object2).isClosed()) continue;
+            for (Object o : list) {
+                UdpHolePuncher udpHolePuncher = (UdpHolePuncher)o;
+                DatagramSocket sock = udpHolePuncher.getSocket();
+                if (sock == null || sock.isClosed()) continue;
                 for (int j = 0; j < 3; ++j) {
                     DatagramPacket datagramPacket = new DatagramPacket(byArray, byArray.length, this.remoteAddress, this.remotePort);
-                    UdpHolePuncher.sendPkt((DatagramSocket)object2, datagramPacket);
+                    UdpHolePuncher.sendPkt(sock, datagramPacket);
                 }
             }
             try {
@@ -1297,7 +1285,8 @@ public class UdpHolePuncher {
                 atomicInteger2.addAndGet(punchResult.socketsReceivedAck);
             }
             if (atomicInteger3.decrementAndGet() == 0 && !completableFuture.isDone()) {
-                for (UdpHolePuncher udpHolePuncher : arrayList) {
+                for (Object o : arrayList) {
+                    UdpHolePuncher udpHolePuncher = (UdpHolePuncher)o;
                     try {
                         udpHolePuncher.close();
                     }
