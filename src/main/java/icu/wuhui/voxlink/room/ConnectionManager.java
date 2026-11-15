@@ -1806,10 +1806,8 @@ public class ConnectionManager {
                         boolean bl2 = bl;
                         this.punchExecutor.execute(() -> {
                             CompletableFuture<PunchResult> completableFuture;
-                            Object object4;
-                            Object object2;
-                            boolean bl2;
-                            Object object3;
+                            String signalId;
+                            String natType;
                             VoxLinkMod.LOGGER.info("[ReversePunch] dual STUN on reverse socket...");
                             StunProbe.PublicMappedAddress publicMappedAddress = null;
                             StunProbe.PublicMappedAddress publicMappedAddress2 = null;
@@ -1825,97 +1823,92 @@ public class ConnectionManager {
                             StunProbe.PublicMappedAddress publicMappedAddress3 = publicMappedAddress;
                             StunProbe.PublicMappedAddress publicMappedAddress4 = publicMappedAddress2;
                             boolean bl3 = false;
-                            int n2 = 0;
+                            int stunDelta = 0;
                             StunProbe.PublicMappedAddress publicMappedAddress5 = null;
                             if (publicMappedAddress3 != null && publicMappedAddress4 != null) {
                                 if (ConnectionManager.sameIpFamily(publicMappedAddress3.ip(), publicMappedAddress4.ip()) && publicMappedAddress3.port() != publicMappedAddress4.port()) {
                                     bl3 = true;
-                                    n2 = publicMappedAddress4.port() - publicMappedAddress3.port();
-                                    VoxLinkMod.LOGGER.info("[ReversePunch] Host punch socket STUN: symmetric detected ({} vs {}, delta={})", new Object[]{publicMappedAddress3.port(), publicMappedAddress4.port(), n2});
+                                    stunDelta = publicMappedAddress4.port() - publicMappedAddress3.port();
+                                    VoxLinkMod.LOGGER.info("[ReversePunch] Host punch socket STUN: symmetric detected ({} vs {}, delta={})", new Object[]{publicMappedAddress3.port(), publicMappedAddress4.port(), stunDelta});
                                 }
                                 publicMappedAddress5 = publicMappedAddress4;
                             } else {
                                 publicMappedAddress5 = publicMappedAddress3 != null ? publicMappedAddress3 : publicMappedAddress4;
-                                object3 = publicMappedAddress5;
                             }
                             if (bl3 && !roomState.roomInfo.isHostSymmetric()) {
                                 roomState.roomInfo.setHostSymmetric(true);
-                                bl2 = Math.abs(n2) <= 100;
-                                object3 = bl2 ? NatClass.EASY_SYM : NatClass.HARD_SYM;
-                                NatClass natClass = object3;
-                                if (this.localNatClass != object3) {
-                                    VoxLinkMod.LOGGER.info("[ReversePunch] Update localNat {} -> {} (reverse socket symmetric detected)", (Object)this.localNatClass, object3);
-                                    this.localNatClass = object3;
+                                boolean easySymLocal = Math.abs(stunDelta) <= 100;
+                                NatClass localNat = easySymLocal ? NatClass.EASY_SYM : NatClass.HARD_SYM;
+                                if (this.localNatClass != localNat) {
+                                    VoxLinkMod.LOGGER.info("[ReversePunch] Update localNat {} -> {} (reverse socket symmetric detected)", (Object)this.localNatClass, localNat);
+                                    this.localNatClass = localNat;
                                     this.remoteNatClass = this.classifyRemoteNat(roomState2);
-                                    object2 = this.scenarioTier;
+                                    ScenarioTier.Tier previousTier = this.scenarioTier;
                                     this.scenarioTier = ScenarioTier.classify(this.localNatClass.isSymmetric(), this.remoteNatClass.isSymmetric(), true, true, true);
-                                    if (this.scenarioTier != object2) {
-                                        VoxLinkMod.LOGGER.info("[ReversePunch] tier {} -> {} (reverse socket symmetric known)", (Object)ScenarioTier.key(object2), (Object)ScenarioTier.key(this.scenarioTier));
+                                    if (this.scenarioTier != previousTier) {
+                                        VoxLinkMod.LOGGER.info("[ReversePunch] tier {} -> {} (reverse socket symmetric known)", (Object)ScenarioTier.key(previousTier), (Object)ScenarioTier.key(this.scenarioTier));
                                     }
                                     PunchProfile punchProfile = NatClass.recommendProfile(this.localNatClass, this.remoteNatClass, this.scenarioTier);
                                     this.switchPunchProfile(punchProfile, "reverse_socket_" + (Object)((Object)this.localNatClass) + "x" + (Object)((Object)this.remoteNatClass));
                                 }
                             }
-                            object3 = new JsonObject();
+                            JsonObject payload = new JsonObject();
                             if (publicMappedAddress5 != null) {
-                                object3.addProperty("hostMappedIp", publicMappedAddress5.ip());
-                                object3.addProperty("hostMappedPort", publicMappedAddress5.port());
+                                payload.addProperty("hostMappedIp", publicMappedAddress5.ip());
+                                payload.addProperty("hostMappedPort", publicMappedAddress5.port());
                             }
-                            boolean bl4 = bl3 || roomState.roomInfo.isHostSymmetric() || StunDetector.isNatTypeSymmetric(roomState.roomInfo.getNatType());
-                            bl2 = bl4;
-                            if (bl4) {
-                                object3.addProperty("hostSymmetric", true);
+                            boolean hostSymKnown = bl3 || roomState.roomInfo.isHostSymmetric() || StunDetector.isNatTypeSymmetric(roomState.roomInfo.getNatType());
+                            if (hostSymKnown) {
+                                payload.addProperty("hostSymmetric", true);
                             }
-                            boolean bl5 = bl3 && Math.abs(n2) <= 100;
+                            boolean bl5 = bl3 && Math.abs(stunDelta) <= 100;
                             boolean bl6 = bl5;
                             if (bl5) {
-                                object3.addProperty("hostEasySym", true);
+                                payload.addProperty("hostEasySym", true);
                             }
-                            this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), true, "reverse_punch_info", (JsonObject)object3, string3).exceptionally(throwable -> {
+                            this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), true, "reverse_punch_info", payload, string3).exceptionally(throwable -> {
                                 VoxLinkMod.LOGGER.debug("[ReversePunch] reverse_punch_info send failed: {}", (Object)throwable.getMessage());
                                 return null;
                             });
                             udpHolePuncher2.setOnPeerPunchReceived(inetSocketAddress -> {
-                                String string2 = roomState.roomInfo.getCode();
-                                String string3 = roomState.roomInfo.getToken();
-                                JsonObject jsonObject = new JsonObject();
-                                jsonObject.addProperty("peer_ip", inetSocketAddress.getAddress().getHostAddress());
-                                jsonObject.addProperty("peer_port", (Number)inetSocketAddress.getPort());
-                                this.signalingClient.sendSignal(string2, string3, true, "peer_port", jsonObject, string3).exceptionally(throwable -> {
+                                String roomCode = roomState.roomInfo.getCode();
+                                String roomToken = roomState.roomInfo.getToken();
+                                JsonObject peerPayload = new JsonObject();
+                                peerPayload.addProperty("peer_ip", inetSocketAddress.getAddress().getHostAddress());
+                                peerPayload.addProperty("peer_port", (Number)inetSocketAddress.getPort());
+                                this.signalingClient.sendSignal(roomCode, roomToken, true, "peer_port", peerPayload, signalId).exceptionally(throwable -> {
                                     VoxLinkMod.LOGGER.debug("peer_port signal failed: {}", (Object)throwable.getMessage());
                                     return null;
                                 });
                             });
-                            object2 = roomState.roomInfo.getNatType();
-                            boolean bl7 = bl3 || StunDetector.isNatTypeSymmetric((String)object2) || roomState.roomInfo.isHostSymmetric();
+                            natType = roomState.roomInfo.getNatType();
+                            boolean bl7 = bl3 || StunDetector.isNatTypeSymmetric(natType) || roomState.roomInfo.isHostSymmetric();
                             ArrayList<Integer> arrayList = new ArrayList<Integer>();
                             if (jsonObject2.has("joinerMappedPorts") && jsonObject2.get("joinerMappedPorts").isJsonArray()) {
-                                for (Object object4 : jsonObject2.getAsJsonArray("joinerMappedPorts")) {
-                                    arrayList.add(object4.getAsInt());
+                                for (JsonElement portEl : jsonObject2.getAsJsonArray("joinerMappedPorts")) {
+                                    arrayList.add(portEl.getAsInt());
                                 }
                             }
                             if (arrayList.isEmpty()) {
                                 arrayList.add(n4);
                             }
-                            int n3 = this.punchProfile().defaultPortRange;
-                            if (bl7 && bl2) {
-                                n3 = 0;
-                            } else if (bl2 && arrayList.size() > 1) {
-                                n3 = 0;
+                            int portRange = this.punchProfile().defaultPortRange;
+                            if (bl7 && hostSymKnown) {
+                                portRange = 0;
+                            } else if (hostSymKnown && arrayList.size() > 1) {
+                                portRange = 0;
                                 VoxLinkMod.LOGGER.info("[ReversePunch] Birthday attack mode: host punch {} joiner ports: {}", (Object)arrayList.size(), arrayList);
                             } else {
-                                n3 = bl2 ? this.punchProfile().widePortRange : (bl7 ? this.punchProfile().defaultPortRange : (!"moderate".equals(object2) && !"port_restricted_cone".equals(object2) ? this.punchProfile().defaultPortRange : this.punchProfile().portPredictionMaxRange));
+                                portRange = hostSymKnown ? this.punchProfile().widePortRange : (bl7 ? this.punchProfile().defaultPortRange : (!"moderate".equals(natType) && !"port_restricted_cone".equals(natType) ? this.punchProfile().defaultPortRange : this.punchProfile().portPredictionMaxRange));
                             }
-                            VoxLinkMod.LOGGER.info("[ReversePunch] Host punch to joiner {} (range=\u00b1{}, hostNat={}, joinerSym={}, birthdayPorts={})", new Object[]{string4, n3, object2, bl2, arrayList.size() > 1 ? arrayList : "no"});
-                            object4 = string3;
-                            UdpHolePuncher udpHolePuncher2 = udpHolePuncher2;
-                            String string3 = string4;
-                            int n4 = n4;
+                            VoxLinkMod.LOGGER.info("[ReversePunch] Host punch to joiner {} (range=\u00b1{}, hostNat={}, joinerSym={}, birthdayPorts={})", new Object[]{string4, portRange, natType, hostSymKnown, arrayList.size() > 1 ? arrayList : "no"});
+                            signalId = string3;
+                            String targetIp = string4;
                             udpHolePuncher2.setProfile(this.punchProfile());
                             PunchParams punchParams = PunchParams.fromProfile(this.punchProfile());
                             punchParams.timeoutMs = Math.max(punchParams.timeoutMs, 12000);
                             udpHolePuncher2.setPunchParams(punchParams);
-                            ScheduledFuture<?> scheduledFuture = this.scheduler.schedule(() -> this.lambda$handleReverseHolepunchOfferDelayed$37(udpHolePuncher2, (String)object4), (long)this.punchProfile().reverseWindowSec, TimeUnit.SECONDS);
+                            ScheduledFuture<?> scheduledFuture = this.scheduler.schedule(() -> this.lambda$handleReverseHolepunchOfferDelayed$37(udpHolePuncher2, signalId), (long)this.punchProfile().reverseWindowSec, TimeUnit.SECONDS);
                             if (arrayList.size() > 1) {
                                 LinkedHashSet<Integer> linkedHashSet = new LinkedHashSet<Integer>();
                                 Iterator iterator = arrayList.iterator();
@@ -1929,11 +1922,11 @@ public class ConnectionManager {
                                 }
                                 ArrayList<Integer> arrayList2 = new ArrayList<Integer>(linkedHashSet);
                                 VoxLinkMod.LOGGER.info("[ReversePunch] Birthday attack: {} ports expanded to {} ports (range {}-{})", new Object[]{arrayList.size(), arrayList2.size(), (Integer)arrayList.get(0) - this.punchProfile().defaultPortRange, (Integer)arrayList.get(arrayList.size() - 1) + this.punchProfile().defaultPortRange});
-                                completableFuture = udpHolePuncher2.punchMultiPort(string3, arrayList2);
+                                completableFuture = udpHolePuncher2.punchMultiPort(targetIp, arrayList2);
                             } else {
-                                completableFuture = udpHolePuncher2.punchWithPortPrediction(string3, n4, n3, true);
+                                completableFuture = udpHolePuncher2.punchWithPortPrediction(targetIp, n4, portRange, true);
                             }
-                            ((CompletableFuture)completableFuture.thenAccept(arg_0 -> this.lambda$handleReverseHolepunchOfferDelayed$39(roomState2, string3, n4, udpHolePuncher2, (String)object4, arg_0))).exceptionally(arg_0 -> this.lambda$handleReverseHolepunchOfferDelayed$40(scheduledFuture, (String)object4, udpHolePuncher2, arg_0));
+                            ((CompletableFuture)completableFuture.thenAccept(arg_0 -> this.lambda$handleReverseHolepunchOfferDelayed$39(roomState2, targetIp, n4, udpHolePuncher2, signalId, arg_0))).exceptionally(arg_0 -> this.lambda$handleReverseHolepunchOfferDelayed$40(scheduledFuture, signalId, udpHolePuncher2, arg_0));
                         });
                     }
                 } else {
