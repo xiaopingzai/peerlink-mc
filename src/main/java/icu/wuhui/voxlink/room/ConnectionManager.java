@@ -1404,11 +1404,13 @@ public class ConnectionManager {
             String string9 = string3;
             int n5 = n;
             CompletableFuture.runAsync(() -> {
-                int n3;
+                int socketCount = n4;
+                int idx;
+                int birthdayThreshold;
                 ArrayList<UdpHolePuncher> arrayList = new ArrayList<UdpHolePuncher>();
                 ArrayList<StunProbe.PublicMappedAddress> arrayList2 = new ArrayList<StunProbe.PublicMappedAddress>();
-                boolean bl2 = false;
-                int n4 = 0;
+                boolean symDetected = false;
+                int portDelta = 0;
                 UdpHolePuncher udpHolePuncher = this.activeHolePunchers.remove("host");
                 if (udpHolePuncher != null) {
                     try {
@@ -1419,15 +1421,15 @@ public class ConnectionManager {
                     }
                 }
                 ArrayList<CompletableFuture<StunProbe.PublicMappedAddress[]>> arrayList3 = new ArrayList<CompletableFuture<StunProbe.PublicMappedAddress[]>>();
-                int n5 = 0;
-                for (n3 = 0; n3 < n4; ++n3) {
+                int created = 0;
+                for (idx = 0; idx < socketCount; ++idx) {
                     UdpHolePuncher udpHolePuncher2 = new UdpHolePuncher();
                     this.applyPunchTemplate(udpHolePuncher2);
                     PunchParams punchParams = PunchParams.fromProfile(this.punchProfile());
                     punchParams.timeoutMs = Math.min(punchParams.timeoutMs, this.punchProfile().hostRoundTimeoutMs);
                     udpHolePuncher2.setPunchParams(punchParams);
                     try {
-                        if (n3 == 0) {
+                        if (idx == 0) {
                             udpHolePuncher2.createSocket(roomState.roomInfo.getHostPort());
                         } else {
                             udpHolePuncher2.createSocket();
@@ -1442,10 +1444,10 @@ public class ConnectionManager {
                         }
                     }
                     arrayList.add(udpHolePuncher2);
-                    this.activeHolePunchers.put("host_" + n3, udpHolePuncher2);
-                    ++n5;
+                    this.activeHolePunchers.put("host_" + idx, udpHolePuncher2);
+                    ++created;
                     UdpHolePuncher udpHolePuncher3 = udpHolePuncher2;
-                    int n6 = n3;
+                    int n6 = idx;
                     arrayList3.add(CompletableFuture.supplyAsync(() -> {
                         StunProbe.PublicMappedAddress[] publicMappedAddressArray = StunProbe.discoverMappedAddressDual(udpHolePuncher3.getSocket(), StunDetector.getAllStunUrls().get(0), StunDetector.getAllStunUrls().get(1));
                         VoxLinkMod.LOGGER.info("[HostPunchInfo] Socket#{} STUN(dual): {} vs {} (localPort={})", new Object[]{n6, publicMappedAddressArray[0] != null ? publicMappedAddressArray[0].port() : -1, publicMappedAddressArray[1] != null ? publicMappedAddressArray[1].port() : -1, udpHolePuncher3.getSocket().getLocalPort()});
@@ -1462,9 +1464,9 @@ public class ConnectionManager {
                         break;
                     }
                 }
-                VoxLinkMod.LOGGER.info("[HostPunchInfo] Parallel start {}/{} socket+dual STUN tasks (no sleep)", (Object)n5, (Object)n4);
-                n3 = Math.min(this.punchProfile().birthdaySocketCount, n4);
-                long l = System.currentTimeMillis() + Math.max(5000L, (long)n4 * (long)Math.max(0, this.punchProfile().socketCreateIntervalMs) + 3000L);
+                VoxLinkMod.LOGGER.info("[HostPunchInfo] Parallel start {}/{} socket+dual STUN tasks (no sleep)", (Object)created, (Object)socketCount);
+                birthdayThreshold = Math.min(this.punchProfile().birthdaySocketCount, socketCount);
+                long l = System.currentTimeMillis() + Math.max(5000L, (long)socketCount * (long)Math.max(0, this.punchProfile().socketCreateIntervalMs) + 3000L);
                 while (System.currentTimeMillis() < l) {
                     int n8 = 0;
                     int n9 = 0;
@@ -1478,7 +1480,7 @@ public class ConnectionManager {
                         }
                         catch (Exception exception2) {}
                     }
-                    if (n9 >= n3 || n8 == arrayList3.size()) break;
+                    if (n9 >= birthdayThreshold || n8 == arrayList3.size()) break;
                     try {
                         Thread.sleep(100L);
                     }
@@ -1501,9 +1503,9 @@ public class ConnectionManager {
                             }
                         }
                         if (publicMappedAddressArray[0] == null || publicMappedAddressArray[1] == null || !ConnectionManager.sameIpFamily(publicMappedAddressArray[0].ip(), publicMappedAddressArray[1].ip()) || publicMappedAddressArray[0].port() == publicMappedAddressArray[1].port()) continue;
-                        bl2 = true;
-                        if (n4 != 0) continue;
-                        n4 = publicMappedAddressArray[1].port() - publicMappedAddressArray[0].port();
+                        symDetected = true;
+                        if (portDelta != 0) continue;
+                        portDelta = publicMappedAddressArray[1].port() - publicMappedAddressArray[0].port();
                         continue;
                     }
                     catch (Exception exception) {
@@ -1521,18 +1523,17 @@ public class ConnectionManager {
                         catch (Exception exception) {}
                     }
                 } else {
-                    String string4;
-                    boolean bl3;
+                    String localIp;
                     Object object2;
                     Object object32;
                     Object object4;
-                    if (bl2 && !roomState.roomInfo.isHostSymmetric()) {
+                    if (symDetected && !roomState.roomInfo.isHostSymmetric()) {
                         roomState.roomInfo.setHostSymmetric(true);
-                        boolean bl4 = Math.abs(n4) <= 100;
-                        NatClass natClass = bl4 ? NatClass.EASY_SYM : NatClass.HARD_SYM;
+                        boolean easySymHard = Math.abs(portDelta) <= 100;
+                        NatClass natClass = easySymHard ? NatClass.EASY_SYM : NatClass.HARD_SYM;
                         object4 = natClass;
                         if (this.localNatClass != natClass) {
-                            VoxLinkMod.LOGGER.info("[HostPunchInfo] Update localNat {} -> {} (multi-socket symmetric detected, delta={})", new Object[]{this.localNatClass, natClass, n4});
+                            VoxLinkMod.LOGGER.info("[HostPunchInfo] Update localNat {} -> {} (multi-socket symmetric detected, delta={})", new Object[]{this.localNatClass, natClass, portDelta});
                             this.localNatClass = natClass;
                             this.remoteNatClass = this.classifyRemoteNat(roomState2);
                             object32 = this.scenarioTier;
@@ -1544,12 +1545,12 @@ public class ConnectionManager {
                             this.switchPunchProfile((PunchProfile)object2, "host_punch_sym_" + (Object)((Object)this.localNatClass) + "x" + (Object)((Object)this.remoteNatClass));
                             VoxLinkMod.LOGGER.info("[HostPunchInfo] Probe upgrade: local={} remote={} -> profile={}", new Object[]{this.localNatClass, this.remoteNatClass, this.punchProfile().describeInstance()});
                         }
-                        if (bl4 && !"symmetric_easy_inc".equals(roomState.roomInfo.getNatType())) {
+                        if (easySymHard && !"symmetric_easy_inc".equals(roomState.roomInfo.getNatType())) {
                             roomState.roomInfo.setNatType("symmetric_easy_inc");
                             VoxLinkMod.LOGGER.info("[HostPunchInfo] Override cached NAT {} -> symmetric_easy_inc (multi-socket dual STUN detected)", (Object)"cached");
                         }
                     }
-                    if (bl2 && arrayList.size() < PunchProfile.HARDSYM.hardSymSocketCount) {
+                    if (symDetected && arrayList.size() < PunchProfile.HARDSYM.hardSymSocketCount) {
                         int n6 = arrayList.size();
                         int n7 = PunchProfile.HARDSYM.hardSymSocketCount;
                         for (int i = arrayList.size(); i < n7; ++i) {
@@ -1571,30 +1572,30 @@ public class ConnectionManager {
                         }
                         VoxLinkMod.LOGGER.info("[HostPunchInfo] Symmetric host, extend birthday attack {} -> {} sockets", (Object)n6, (Object)arrayList.size());
                     }
-                    JsonObject jsonObject2 = new JsonObject();
-                    if (bl2 || StunDetector.isNatTypeSymmetric(roomState.roomInfo.getNatType())) {
-                        jsonObject2.addProperty("hostSymmetric", Boolean.valueOf(true));
+                    JsonObject payload = new JsonObject();
+                    if (symDetected || StunDetector.isNatTypeSymmetric(roomState.roomInfo.getNatType())) {
+                        payload.addProperty("hostSymmetric", Boolean.valueOf(true));
                     }
-                    boolean bl5 = bl3 = bl2 && Math.abs(n4) <= 100;
-                    if (bl3) {
-                        jsonObject2.addProperty("hostEasySym", Boolean.valueOf(true));
+                    boolean easySymFlag = symDetected && Math.abs(portDelta) <= 100;
+                    if (easySymFlag) {
+                        payload.addProperty("hostEasySym", Boolean.valueOf(true));
                     }
-                    if (bl2 && n4 != 0) {
-                        jsonObject2.addProperty("hostMappedPortDelta", (Number)n4);
+                    if (symDetected && portDelta != 0) {
+                        payload.addProperty("hostMappedPortDelta", (Number)portDelta);
                     }
-                    jsonObject2.addProperty("hostMappedIp", firstIp);
-                    jsonObject2.addProperty("hostMappedPort", (Number)((StunProbe.PublicMappedAddress)arrayList2.get(0)).port());
-                    if ((bl14 || roomState.roomInfo.isSameCgnat()) && (string4 = StunDetector.getLocalIpAddress()) != null && !string4.isEmpty()) {
-                        jsonObject2.addProperty("hostLocalIp", string4);
-                        VoxLinkMod.LOGGER.info("[HostPunchInfo] CGNAT scenario include hostLocalIp: {}", (Object)string4);
+                    payload.addProperty("hostMappedIp", firstIp);
+                    payload.addProperty("hostMappedPort", (Number)((StunProbe.PublicMappedAddress)arrayList2.get(0)).port());
+                    if ((bl14 || roomState.roomInfo.isSameCgnat()) && (localIp = StunDetector.getLocalIpAddress()) != null && !localIp.isEmpty()) {
+                        payload.addProperty("hostLocalIp", localIp);
+                        VoxLinkMod.LOGGER.info("[HostPunchInfo] CGNAT scenario include hostLocalIp: {}", (Object)localIp);
                     }
                     JsonArray jsonArray = new JsonArray();
-                    for (Object object32 : arrayList2) {
-                        jsonArray.add((Number)((StunProbe.PublicMappedAddress)object32).port());
+                    for (StunProbe.PublicMappedAddress addr : arrayList2) {
+                        jsonArray.add((Number)addr.port());
                     }
-                    jsonObject2.add("hostMappedPorts", (JsonElement)jsonArray);
-                    VoxLinkMod.LOGGER.info("[HostPunchInfo] holepunch_mapped: {} ports={} (symmetric={})", new Object[]{firstIp, jsonArray, bl2});
-                    this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), true, "holepunch_mapped", jsonObject2, string8).exceptionally(throwable -> {
+                    payload.add("hostMappedPorts", (JsonElement)jsonArray);
+                    VoxLinkMod.LOGGER.info("[HostPunchInfo] holepunch_mapped: {} ports={} (symmetric={})", new Object[]{firstIp, jsonArray, symDetected});
+                    this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), true, "holepunch_mapped", payload, string8).exceptionally(throwable -> {
                         VoxLinkMod.LOGGER.debug("holepunch_mapped send failed: {}", (Object)throwable.getMessage());
                         return null;
                     });
@@ -1607,19 +1608,19 @@ public class ConnectionManager {
                         udpHolePuncher2.setOnPeerPunchReceived(inetSocketAddress -> {
                             String roomCode = roomState.roomInfo.getCode();
                             String roomToken = roomState.roomInfo.getToken();
-                            JsonObject payload = new JsonObject();
-                            payload.addProperty("peer_ip", inetSocketAddress.getAddress().getHostAddress());
-                            payload.addProperty("peer_port", (Number)inetSocketAddress.getPort());
-                            this.signalingClient.sendSignal(roomCode, roomToken, true, "peer_port", payload, string8).exceptionally(throwable -> {
+                            JsonObject peerPayload = new JsonObject();
+                            peerPayload.addProperty("peer_ip", inetSocketAddress.getAddress().getHostAddress());
+                            peerPayload.addProperty("peer_port", (Number)inetSocketAddress.getPort());
+                            this.signalingClient.sendSignal(roomCode, roomToken, true, "peer_port", peerPayload, string8).exceptionally(throwable -> {
                                 VoxLinkMod.LOGGER.debug("peer_port signal failed: {}", (Object)throwable.getMessage());
                                 return null;
                             });
                         });
                     }
                     object2 = this.scheduler.schedule(() -> this.lambda$handleHostPunchInfo$27((String)object4, arrayList), 120L, TimeUnit.SECONDS);
-                    boolean bl6 = jsonObject2.has("joinerSymmetric") && jsonObject2.get("joinerSymmetric").getAsBoolean();
-                    boolean bl7 = this.localNatClass.isSymmetric() && this.remoteNatClass.isSymmetric();
-                    int n8 = bl6 || bl7 ? this.punchProfile().joinerMultiPortRange : 0;
+                    boolean joinerSym = jsonObject2.has("joinerSymmetric") && jsonObject2.get("joinerSymmetric").getAsBoolean();
+                    boolean bothSym = this.localNatClass.isSymmetric() && this.remoteNatClass.isSymmetric();
+                    int n8 = joinerSym || bothSym ? this.punchProfile().joinerMultiPortRange : 0;
                     for (UdpHolePuncher udpHolePuncher3 : arrayList) {
                         if (udpHolePuncher3 == null || udpHolePuncher3.getSocket() == null || udpHolePuncher3.getSocket().isClosed()) continue;
                         udpHolePuncher3.setProfile(this.punchProfile());
@@ -1631,15 +1632,15 @@ public class ConnectionManager {
                         }
                         udpHolePuncher3.setPunchParams(punchParams);
                     }
-                    VoxLinkMod.LOGGER.info("[HostPunchInfo] {} sockets parallel punch to {}:{} range=\u00b1{} (joinerSym={})", new Object[]{arrayList.size(), string9, n5, n8, bl6});
-                    boolean bl8 = bl2 || roomState.roomInfo.isHostSymmetric();
+                    VoxLinkMod.LOGGER.info("[HostPunchInfo] {} sockets parallel punch to {}:{} range=\u00b1{} (joinerSym={})", new Object[]{arrayList.size(), string9, n5, n8, joinerSym});
+                    boolean hostSymKnown = symDetected || roomState.roomInfo.isHostSymmetric();
                     long l2 = 120000L;
                     long l3 = System.currentTimeMillis();
                     long l4 = 0L;
                     if (!this.connectionWon.get() && this.roomManager.currentRoom.get() == roomState2) {
                         long l5 = System.currentTimeMillis() + 120000L;
                         while (!this.connectionWon.get() && this.roomManager.currentRoom.get() == roomState2 && System.currentTimeMillis() < l5) {
-                            if (bl8 && this.hostPunching && !arrayList2.isEmpty()) {
+                            if (hostSymKnown && this.hostPunching && !arrayList2.isEmpty()) {
                                 long l6 = System.currentTimeMillis();
                                 long l7 = l6 - l3;
                                 if (l6 - l4 >= 3000L && l7 < l2) {
@@ -1654,7 +1655,7 @@ public class ConnectionManager {
                                             jsonArray2.add((Number)publicMappedAddress.port());
                                         }
                                         jsonObject3.add("hostMappedPorts", (JsonElement)jsonArray2);
-                                        if (bl3) {
+                                        if (easySymFlag) {
                                             jsonObject3.addProperty("hostEasySym", Boolean.valueOf(true));
                                         }
                                         this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), true, "holepunch_mapped", jsonObject3, string8).exceptionally(throwable -> {
@@ -1668,19 +1669,19 @@ public class ConnectionManager {
                                     }
                                 }
                             }
-                            boolean bl9 = false;
+                            boolean anyActive = false;
                             ArrayList<CompletionStage> arrayList4 = new ArrayList<CompletionStage>();
                             for (int i = 0; i < arrayList.size(); ++i) {
                                 UdpHolePuncher udpHolePuncher4 = (UdpHolePuncher)arrayList.get(i);
                                 if (udpHolePuncher4.isSocketTransferred() || udpHolePuncher4.getSocket() == null || udpHolePuncher4.getSocket().isClosed()) continue;
-                                bl9 = true;
+                                anyActive = true;
                                 int n9 = i;
-                                arrayList4.add(((CompletableFuture)udpHolePuncher4.punchWithPortPrediction(string9, n5, n8).thenAccept(arg_0 -> this.lambda$handleHostPunchInfo$30((AtomicBoolean)object32, udpHolePuncher4, roomState2, n9, string9, n5, (String)object4, arg_0))).exceptionally(object -> {
-                                    VoxLinkMod.LOGGER.debug("[HostPunchInfo] Socket#{} punch failed: {}", (Object)n13, (Object)((Throwable)object).getMessage());
+                                arrayList4.add(((CompletableFuture)udpHolePuncher4.punchWithPortPrediction(string9, n5, n8).thenAccept(arg_0 -> this.lambda$handleHostPunchInfo$30((AtomicBoolean)object32, udpHolePuncher4, roomState2, n9, string9, n5, (String)object4, arg_0))).exceptionally(fail -> {
+                                    VoxLinkMod.LOGGER.debug("[HostPunchInfo] Socket#{} punch failed: {}", (Object)n9, (Object)((Throwable)fail).getMessage());
                                     return null;
                                 }));
                             }
-                            if (!bl9) break;
+                            if (!anyActive) break;
                             try {
                                 CompletableFuture.allOf(arrayList4.toArray(new CompletableFuture[0])).join();
                             }
