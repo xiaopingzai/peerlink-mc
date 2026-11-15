@@ -5,8 +5,8 @@
 PeerLink 是一个轻量 P2P 多人联机模组：通过短房间码让你和朋友进入彼此的世界，无需端口转发、无需专用服务器，也无需第三方 VPN。
 
 > 仓库 slug：`peerlink-mc`
-> 本仓库含两套源码：根目录 `src/` 为 **1.12.2 Forge** 反编译存档；`voxlink-26.3/` 为对齐上游的 **Minecraft 26.3 Fabric**（`1.2.2-26.3`）干净源码。
-> 状态：1.12.2 为反编译重建的源码存档 + 修复记录；26.3 为上游 Gradle 工程源码同步（见下方「26.3 Fabric 源码」）。
+> 本仓库含四个版本的源码：根目录 `src/` 为 **1.12.2 Forge** 反编译存档；`legacy-sources/1.8.9/`、`legacy-sources/1.11.2/` 为对应 **1.8.9 / 1.11.2 Forge** 的 CFR 反编译参考归档；`voxlink-26.3/` 为对齐上游的 **Minecraft 26.3 Fabric**（`1.2.2-26.3`）干净源码。
+> 状态：1.12.2 为反编译重建的源码存档 + 修复记录；1.8.9 / 1.11.2 为反编译恢复的参考归档（不能开箱编译）；26.3 为上游 Gradle 工程源码同步。各版本性质与编译状态见 [SOURCE-MATRIX.md](SOURCE-MATRIX.md)。
 
 ## 功能
 
@@ -54,6 +54,10 @@ peerlink-mc/
 ├── src/main/resources/
 │   ├── mcmod.info
 │   └── assets/voxlink/lang/        # en_US / zh_CN 语言文件、图标
+├── legacy-sources/                                     # 1.8.9 / 1.11.2 Forge 反编译参考归档
+│   ├── 1.8.9/src/main/…        # CFR 0.152 反编译 1.1.8 jar（54 个类，见 SOURCE-NOTES.md）
+│   ├── 1.11.2/src/main/…       # CFR 0.152 反编译 1.1.8 jar（54 个类，见 SOURCE-NOTES.md）
+│   └── SOURCE 说明保留原始 VoxLink 品牌与旧域名，未做 repatch
 ├── voxlink-26.3/                                       # 上游 Fabric 26.3 源码同步（1.2.2-26.3）
 │   ├── LICENSE                                         # LGPL-3.0 全文（取自上游仓库）
 │   ├── core/src/main/java/icu/wuhui/voxlink/           # 共享引擎、平台抽象、陶瓦、中继等

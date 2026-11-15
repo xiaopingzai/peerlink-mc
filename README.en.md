@@ -5,8 +5,8 @@
 PeerLink is a lightweight P2P multiplayer mod that lets you and your friends join each other's worlds using short room codes — no port forwarding, no dedicated server, and no third-party VPN.
 
 > Repository slug: `peerlink-mc`
-> This repository holds two source sets: `src/` at the root is the **1.12.2 Forge** decompiled archive; `voxlink-26.3/` is the upstream-aligned **Minecraft 26.3 Fabric** (`1.2.2-26.3`) clean source.
-> Status: the 1.12.2 tree is a decompiled reconstructed archive + fix records; the 26.3 tree is an upstream Gradle project source sync (see "26.3 Fabric sources" below).
+> This repository holds source sets for four versions: `src/` at the root is the **1.12.2 Forge** decompiled archive; `legacy-sources/1.8.9/` and `legacy-sources/1.11.2/` are **1.8.9 / 1.11.2 Forge** CFR decompiled reference archives; `voxlink-26.3/` is the upstream-aligned **Minecraft 26.3 Fabric** (`1.2.2-26.3`) clean source.
+> Status: the 1.12.2 tree is a decompiled reconstructed archive + fix records; the 1.8.9 / 1.11.2 trees are decompiled reference archives that do not compile out of the box; the 26.3 tree is an upstream Gradle project source sync. Per-version nature and build status are in [SOURCE-MATRIX.md](SOURCE-MATRIX.md).
 
 ## Features
 
@@ -54,6 +54,10 @@ peerlink-mc/
 ├── src/main/resources/
 │   ├── mcmod.info
 │   └── assets/voxlink/lang/        # en_US / zh_CN lang files, icon
+├── legacy-sources/                                     # 1.8.9 / 1.11.2 Forge decompiled reference archives
+│   ├── 1.8.9/src/main/…        # CFR 0.152 decompile of the 1.1.8 jar (54 classes; see SOURCE-NOTES.md)
+│   ├── 1.11.2/src/main/…       # CFR 0.152 decompile of the 1.1.8 jar (54 classes; see SOURCE-NOTES.md)
+│   └── Resources keep the original VoxLink branding and old domain; not repatched
 ├── voxlink-26.3/                                       # Upstream Fabric 26.3 source sync (1.2.2-26.3)
 │   ├── LICENSE                                         # LGPL-3.0 full text (from upstream)
 │   ├── core/src/main/java/icu/wuhui/voxlink/           # Shared engine, platform abstraction, Terracotta, relay
