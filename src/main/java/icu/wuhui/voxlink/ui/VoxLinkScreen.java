@@ -8,6 +8,7 @@ import icu.wuhui.voxlink.room.RoomManager;
 import icu.wuhui.voxlink.room.RoomInfo;
 import icu.wuhui.voxlink.modsync.ModSyncGuestService;
 import icu.wuhui.voxlink.modsync.ModSyncSelectScreen;
+import icu.wuhui.voxlink.network.TicketClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -42,6 +43,8 @@ extends VoxLinkScreenBase {
     @Override
     public void initGui() {
         super.initGui();
+        // 首次进入主屏静默轮询一次工单回复状态（失败仅 debug，不阻塞界面）。
+        TicketClient.pollOnceIfNeeded(null);
         int centerX = this.width / 2;
         int y = this.height / 2 - 66;
         this.addButton(BROWSE_BTN, centerX - 100, y, 200, 20, I18n.format("voxlink.browse_rooms", new Object[0]));
