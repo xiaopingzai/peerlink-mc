@@ -13,6 +13,7 @@
  */
 package icu.wuhui.voxlink.ui;
 
+import java.io.IOException;
 import icu.wuhui.voxlink.VoxLinkMod;
 import icu.wuhui.voxlink.room.RoomInfo;
 import icu.wuhui.voxlink.room.RoomManager;
@@ -33,6 +34,7 @@ public class CreateRoomScreen
 extends VoxLinkScreenBase {
     private static final int CREATE_BTN = 2;
     private static final int CATEGORY_BTN = 50;
+    private static final int PUBLISH_BTN = 51;
     private static final String[] CATS = new String[]{"survival", "creative", "pvp", "rpg", "redstone", "minigame", "social", "other"};
     private static final String[] CAT_KEYS = new String[]{"voxlink.gui.cat.survival", "voxlink.gui.cat.creative", "voxlink.gui.cat.pvp", "voxlink.gui.cat.rpg", "voxlink.gui.cat.redstone", "voxlink.gui.cat.minigame", "voxlink.gui.cat.social", "voxlink.gui.cat.other"};
     private int catIdx = 0;
@@ -60,7 +62,8 @@ extends VoxLinkScreenBase {
         this.maxPlayersField.setMaxStringLength(2);
         this.maxPlayersField.setText("8");
         this.addButton(50, n - 100, n2 + 84, 200, 20, I18n.format((String)"voxlink.gui.category", (Object[])new Object[0]) + ": " + I18n.format((String)CAT_KEYS[this.catIdx], (Object[])new Object[0]));
-        this.addButton(2, n - 100, n2 + 110, 200, 20, I18n.format((String)"voxlink.gui.create", (Object[])new Object[0]));
+        this.addButton(PUBLISH_BTN, n - 100, n2 + 110, 200, 20, this.buildPublishLabel());
+        this.addButton(2, n - 100, n2 + 136, 200, 20, I18n.format((String)"voxlink.gui.create", (Object[])new Object[0]));
     }
 
     @Override
@@ -79,14 +82,14 @@ extends VoxLinkScreenBase {
         }
     }
 
-    protected void keyTyped(char c, int n) {
+    protected void keyTyped(char c, int n) throws IOException {
         if (this.nameField.textboxKeyTyped(c, n) || this.passwordField.textboxKeyTyped(c, n) || this.maxPlayersField.textboxKeyTyped(c, n)) {
             return;
         }
         super.keyTyped(c, n);
     }
 
-    protected void mouseClicked(int n, int n2, int n3) {
+    protected void mouseClicked(int n, int n2, int n3) throws IOException {
         super.mouseClicked(n, n2, n3);
         CreateRoomScreen.handleFieldClick(this.nameField, n, n2);
         CreateRoomScreen.handleFieldClick(this.passwordField, n, n2);
@@ -105,9 +108,19 @@ extends VoxLinkScreenBase {
         } else if (guiButton.id == 50) {
             this.catIdx = (this.catIdx + 1) % CATS.length;
             guiButton.displayString = I18n.format((String)"voxlink.gui.category", (Object[])new Object[0]) + ": " + I18n.format((String)CAT_KEYS[this.catIdx], (Object[])new Object[0]);
+        } else if (guiButton.id == PUBLISH_BTN) {
+            boolean v = !VoxLinkMod.getConfig().isHostModSyncPublish();
+            VoxLinkMod.getConfig().setHostModSyncPublish(v);
+            VoxLinkMod.getConfig().save();
+            guiButton.displayString = this.buildPublishLabel();
         } else {
             super.actionPerformed(guiButton);
         }
+    }
+
+    private String buildPublishLabel() {
+        String onOff = I18n.format(VoxLinkMod.getConfig().isHostModSyncPublish() ? "voxlink.terracotta.on" : "voxlink.terracotta.off");
+        return I18n.format("voxlink.modsync.toggle.publish", onOff);
     }
 
     private void onCreate() {

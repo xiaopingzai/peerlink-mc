@@ -203,7 +203,6 @@ public class ConnectionManager {
 
     private UdpSocketArray getOrCreateUdpArray(int n, boolean bl, List<String> arrayList) {
         UdpSocketArray udpSocketArray;
-        Object object;
         int n2;
         long l = System.currentTimeMillis();
         if (this.cachedUdpArray != null) {
@@ -222,20 +221,20 @@ public class ConnectionManager {
         int n4 = Math.max(0, this.punchProfile().socketCreateIntervalMs);
         for (n2 = 0; n2 < n; ++n2) {
             int n5 = n2;
-            object = new UdpHolePuncher();
-            this.applyPunchTemplate((UdpHolePuncher)object);
+            UdpHolePuncher puncher = new UdpHolePuncher();
+            this.applyPunchTemplate(puncher);
             try {
-                ((UdpHolePuncher)object).createSocket();
+                puncher.createSocket();
             }
             catch (Exception exception) {
                 VoxLinkMod.LOGGER.warn("[BirthdayPunch] Create socket #{} failed: {}", (Object)n5, (Object)exception.getMessage());
                 try {
-                    ((UdpHolePuncher)object).close();
+                    puncher.close();
                 }
                 catch (Exception exception2) {}
                 continue;
             }
-            arrayList4.add(CompletableFuture.supplyAsync(() -> ConnectionManager.lambda$getOrCreateUdpArray$0((UdpHolePuncher)object, arrayList5)));
+            arrayList4.add(CompletableFuture.supplyAsync(() -> ConnectionManager.lambda$getOrCreateUdpArray$0(puncher, arrayList5)));
             if (n4 <= 0) continue;
             try {
                 Thread.sleep(n4);
@@ -248,10 +247,19 @@ public class ConnectionManager {
         }
         n2 = Math.min(this.punchProfile().birthdaySocketCount, n);
         AtomicInteger atomicInteger = new AtomicInteger(0);
-        object = new AtomicInteger(0);
+        AtomicInteger totalCount = new AtomicInteger(0);
         CompletableFuture completableFuture = new CompletableFuture();
+        int expectedTotal = n2;
         for (CompletableFuture completableFuture2 : arrayList4) {
-            completableFuture2.whenComplete((arg_0, arg_1) -> ConnectionManager.lambda$getOrCreateUdpArray$1((AtomicInteger)object, atomicInteger, n2, arrayList4, completableFuture, arg_0, arg_1));
+            completableFuture2.whenComplete((arg_0, arg_1) -> {
+                totalCount.incrementAndGet();
+                if (arg_0 != null) {
+                    atomicInteger.incrementAndGet();
+                }
+                if (atomicInteger.get() >= expectedTotal || totalCount.get() == arrayList4.size()) {
+                    completableFuture.complete(null);
+                }
+            });
         }
         long l2 = Math.max(5000L, (long)n * (long)n4 + 3000L);
         try {
@@ -754,7 +762,7 @@ public class ConnectionManager {
                 VoxLinkMod.LOGGER.info("[RoomManager] Client {} has active transport, ignore duplicate join_request", (Object)string);
             } else {
                 VoxLinkMod.LOGGER.info("[RoomManager] Punching in progress, queue join_request from {} (retry {}/3)", (Object)string, (Object)(n + 1));
-                n2 = n + 1;
+                int queuedRetry = n + 1;
                 this.scheduler.schedule(() -> {
                     RoomManager.RoomState queuedState = this.roomManager.currentRoom.get();
                     if (queuedState != null && queuedState != RoomManager.PENDING && queuedState.roomInfo.isHost()) {
@@ -762,7 +770,7 @@ public class ConnectionManager {
                             VoxLinkMod.LOGGER.info("[RoomManager] Client {} connected, skip queued retry", (Object)string);
                         } else {
                             VoxLinkMod.LOGGER.info("[RoomManager] Retry queued join_request from {}", (Object)string);
-                            this.handleJoinRequest(string, jsonObject, n2);
+                            this.handleJoinRequest(string, jsonObject, queuedRetry);
                         }
                     }
                 }, 10L, TimeUnit.SECONDS);
@@ -830,13 +838,13 @@ public class ConnectionManager {
                 this.scheduleRelayRegistrationRenewal(roomState, this.stunProbeResult.natType.key, (String)object2, n);
             }
         }
-        object2 = udpHolePuncher;
+        UdpHolePuncher hostPuncher = udpHolePuncher;
         String string4 = string3;
         JsonObject jsonObject2 = jsonObject;
         RoomManager.RoomState roomState2 = roomState;
         String string5 = string;
         int n4 = n3;
-        CompletableFuture.supplyAsync(() -> this.lambda$sendHolepunchOffer$8((UdpHolePuncher)object2, string4, symmetric)).thenAccept(arg_0 -> this.lambda$sendHolepunchOffer$13(symmetric, string4, jsonObject2, (UdpHolePuncher)object2, roomState2, string5, n4, arg_0));
+        CompletableFuture.supplyAsync(() -> this.lambda$sendHolepunchOffer$8(hostPuncher, string4, symmetric)).thenAccept(arg_0 -> this.lambda$sendHolepunchOffer$13(symmetric, string4, jsonObject2, hostPuncher, roomState2, string5, n4, arg_0));
     }
 
     public void handleHolePunchOffer(String string, JsonObject jsonObject) {
@@ -1181,8 +1189,9 @@ public class ConnectionManager {
                     int n8 = Math.min(arrayList.size(), 6);
                     for (int i = 1; i < n8; ++i) {
                         n4 = i;
+                        int idx = i;
                         int n9 = (Integer)arrayList.get(i);
-                        String string6 = "joiner_extra_" + n4;
+                        String string6 = "joiner_extra_" + idx;
                         if (this.activeHolePunchers.containsKey(string6)) continue;
                         UdpHolePuncher udpHolePuncher = new UdpHolePuncher();
                         this.applyPunchTemplate(udpHolePuncher);
@@ -1224,7 +1233,7 @@ public class ConnectionManager {
                                     }
                                 }
                             })).exceptionally(object -> {
-                                VoxLinkMod.LOGGER.debug("[RoomManager] Multi-port puncher#{} punch failed: {}", (Object)n4, (Object)((Throwable)object).getMessage());
+                                VoxLinkMod.LOGGER.debug("[RoomManager] Multi-port puncher#{} punch failed: {}", (Object)idx, (Object)((Throwable)object).getMessage());
                                 this.activeHolePunchers.remove(string6);
                                 try {
                                     udpHolePuncher.close();
@@ -1492,12 +1501,11 @@ public class ConnectionManager {
                 String firstIp = null;
                 for (int i = 0; i < arrayList3.size(); ++i) {
                     try {
-                        StunProbe.PublicMappedAddress fallbackAddr;
                         StunProbe.PublicMappedAddress[] publicMappedAddressArray = ((CompletableFuture<StunProbe.PublicMappedAddress[]>)arrayList3.get(i)).getNow(null);
                         if (publicMappedAddressArray == null || publicMappedAddressArray[0] == null && publicMappedAddressArray[1] == null) continue;
-                        StunProbe.PublicMappedAddress publicMappedAddress = publicMappedAddressArray[0] != null && publicMappedAddressArray[0].ip().indexOf(58) < 0 ? publicMappedAddressArray[0] : (publicMappedAddressArray[1] != null && publicMappedAddressArray[1].ip().indexOf(58) < 0 ? publicMappedAddressArray[1] : (fallbackAddr = publicMappedAddressArray[0] != null ? publicMappedAddressArray[0] : publicMappedAddressArray[1]));
-                        if (fallbackAddr != null) {
-                            arrayList2.add(fallbackAddr);
+                        StunProbe.PublicMappedAddress publicMappedAddress = publicMappedAddressArray[0] != null && publicMappedAddressArray[0].ip().indexOf(58) < 0 ? publicMappedAddressArray[0] : (publicMappedAddressArray[1] != null && publicMappedAddressArray[1].ip().indexOf(58) < 0 ? publicMappedAddressArray[1] : (publicMappedAddressArray[0] != null ? publicMappedAddressArray[0] : publicMappedAddressArray[1]));
+                        if (publicMappedAddress != null) {
+                            arrayList2.add(publicMappedAddress);
                             if (firstIp == null) {
                                 firstIp = publicMappedAddress.ip();
                             }
@@ -1617,7 +1625,8 @@ public class ConnectionManager {
                             });
                         });
                     }
-                    object2 = this.scheduler.schedule(() -> this.lambda$handleHostPunchInfo$27((String)object4, arrayList), 120L, TimeUnit.SECONDS);
+                    String hostClientId = string8;
+                    object2 = this.scheduler.schedule(() -> this.lambda$handleHostPunchInfo$27(hostClientId, arrayList), 120L, TimeUnit.SECONDS);
                     boolean joinerSym = jsonObject2.has("joinerSymmetric") && jsonObject2.get("joinerSymmetric").getAsBoolean();
                     boolean bothSym = this.localNatClass.isSymmetric() && this.remoteNatClass.isSymmetric();
                     int n8 = joinerSym || bothSym ? this.punchProfile().joinerMultiPortRange : 0;
@@ -1670,13 +1679,15 @@ public class ConnectionManager {
                                 }
                             }
                             boolean anyActive = false;
+                            AtomicBoolean hostFlag = (AtomicBoolean) object32;
+                            String hostId = (String) object4;
                             ArrayList<CompletionStage> arrayList4 = new ArrayList<CompletionStage>();
                             for (int i = 0; i < arrayList.size(); ++i) {
                                 UdpHolePuncher udpHolePuncher4 = (UdpHolePuncher)arrayList.get(i);
                                 if (udpHolePuncher4.isSocketTransferred() || udpHolePuncher4.getSocket() == null || udpHolePuncher4.getSocket().isClosed()) continue;
                                 anyActive = true;
                                 int n9 = i;
-                                arrayList4.add(((CompletableFuture)udpHolePuncher4.punchWithPortPrediction(string9, n5, n8).thenAccept(arg_0 -> this.lambda$handleHostPunchInfo$30((AtomicBoolean)object32, udpHolePuncher4, roomState2, n9, string9, n5, (String)object4, arg_0))).exceptionally(fail -> {
+                                arrayList4.add(((CompletableFuture)udpHolePuncher4.punchWithPortPrediction(string9, n5, n8).thenAccept(arg_0 -> this.lambda$handleHostPunchInfo$30(hostFlag, udpHolePuncher4, roomState2, n9, string9, n5, hostId, arg_0))).exceptionally(fail -> {
                                     VoxLinkMod.LOGGER.debug("[HostPunchInfo] Socket#{} punch failed: {}", (Object)n9, (Object)((Throwable)fail).getMessage());
                                     return null;
                                 }));
@@ -1806,7 +1817,7 @@ public class ConnectionManager {
                         boolean bl2 = bl;
                         this.punchExecutor.execute(() -> {
                             CompletableFuture<PunchResult> completableFuture;
-                            String signalId;
+                            String signalId = string3;
                             String natType;
                             VoxLinkMod.LOGGER.info("[ReversePunch] dual STUN on reverse socket...");
                             StunProbe.PublicMappedAddress publicMappedAddress = null;
@@ -1902,7 +1913,6 @@ public class ConnectionManager {
                                 portRange = hostSymKnown ? this.punchProfile().widePortRange : (bl7 ? this.punchProfile().defaultPortRange : (!"moderate".equals(natType) && !"port_restricted_cone".equals(natType) ? this.punchProfile().defaultPortRange : this.punchProfile().portPredictionMaxRange));
                             }
                             VoxLinkMod.LOGGER.info("[ReversePunch] Host punch to joiner {} (range=\u00b1{}, hostNat={}, joinerSym={}, birthdayPorts={})", new Object[]{string4, portRange, natType, hostSymKnown, arrayList.size() > 1 ? arrayList : "no"});
-                            signalId = string3;
                             String targetIp = string4;
                             udpHolePuncher2.setProfile(this.punchProfile());
                             PunchParams punchParams = PunchParams.fromProfile(this.punchProfile());
@@ -2048,6 +2058,64 @@ public class ConnectionManager {
                     }
                 }
             }
+        }
+    }
+
+    private /* synthetic */ Object lambda$handleReversePunchInfo$46(UdpHolePuncher puncher, RoomManager.RoomState roomState, Object arg) {
+        VoxLinkMod.LOGGER.warn("[ReversePunch] Joiner reverse punch failed: {}", ((Throwable) arg).getMessage());
+        puncher.cancel();
+        puncher.close();
+        this.activeHolePunchers.remove("joiner_reverse");
+        this.showConnectFailed(roomState, "voxlink.connection.reverse_punch_failed");
+        return null;
+    }
+
+    private /* synthetic */ void lambda$handleReversePunchInfo$45(RoomManager.RoomState roomState, String hostIp, int hostPort, UdpHolePuncher puncher, PunchResult punchResult) {
+        if (!punchResult.isSuccess()) {
+            PunchFailureClassifier.FailureReason reason = PunchFailureClassifier.classify(punchResult);
+            this.lastPunchResult = punchResult.withReason(reason);
+            this.activePunchParams = PunchTuner.nextParams(this.punchProfile(), this.localNatClass, this.remoteNatClass, 1, 8, reason, this.lastPunchResult);
+            VoxLinkMod.LOGGER.info("[ConnectionManager] Punch failed reason={} recvPunch={} recvAck={}", new Object[]{reason, punchResult.socketsReceivedPunch, punchResult.socketsReceivedAck});
+            return;
+        }
+        DatagramSocket socket = punchResult.getSuccessSocket();
+        if (this.roomManager.currentRoom.get() == roomState && this.connectionWon.compareAndSet(false, true)) {
+            VoxLinkMod.LOGGER.info("[ReversePunch] Joiner reverse punch success {}:{}", hostIp, hostPort);
+            puncher.markSocketTransferred();
+            this.stopAllPunchingAfterHostBridge();
+            puncher.stopPunch();
+            DatagramSocket transportSocket = socket;
+            UdpHolePuncher transportPuncher = puncher;
+            InetSocketAddress remote = puncher.getActualRemoteAddress();
+            if (remote == null) {
+                remote = new InetSocketAddress(hostIp, hostPort);
+            }
+            InetSocketAddress target = remote;
+            VoxLinkMod.LOGGER.info("[ReversePunch] Actual target address: {} (STUN mapping: {}:{})", new Object[]{target, hostIp, hostPort});
+            this.scheduler.submit(() -> this.lambda$handleReversePunchInfo$44(roomState, transportSocket, transportPuncher, target));
+        } else {
+            try {
+                puncher.close();
+            }
+            catch (Exception exception) {
+                // empty catch block
+            }
+        }
+    }
+
+    private /* synthetic */ void lambda$handleReversePunchInfo$44(RoomManager.RoomState roomState, DatagramSocket socket, UdpHolePuncher puncher, InetSocketAddress target) {
+        try {
+            this.establishUdpTransport(roomState, socket, puncher, target, "joiner", false, null);
+        }
+        catch (Exception exception) {
+            VoxLinkMod.LOGGER.error("[ReversePunch] Joiner UDP transport create failed: {}", (Object)exception.getMessage());
+            try {
+                puncher.close();
+            }
+            catch (Exception exception2) {
+                // empty catch block
+            }
+            this.showConnectFailed(roomState, "voxlink.connection.transport_failed");
         }
     }
 
@@ -2270,10 +2338,11 @@ public class ConnectionManager {
                         boolean bl = string5 != null && !string5.isEmpty() && StunDetector.isSameLan(string5);
                         boolean bl2 = roomState.roomInfo.isSameCgnat();
                         if (string5 != null && !string5.isEmpty() && (bl || bl2)) {
-                            object = bl ? "LAN" : "CGNAT\u540c\u516c\u7f51IP";
-                            VoxLinkMod.LOGGER.info("[Connection] Wave 1: Detected {} (localIp={}), try direct connect", object, (Object)string5);
+                            String directMode = bl ? "LAN" : "CGNAT\u540c\u516c\u7f51IP";
+                            object = directMode;
+                            VoxLinkMod.LOGGER.info("[Connection] Wave 1: Detected {} (localIp={}), try direct connect", directMode, (Object)string5);
                             ConnectionFallback connectionFallback = this.trackFallback(new ConnectionFallback());
-                            arrayList.add(connectionFallback.tryIpv4Direct(string5, n).thenAccept(arg_0 -> this.lambda$tryConnectionStep$53(roomState, (String)object, atomicBoolean, string5, n, arg_0)));
+                            arrayList.add(connectionFallback.tryIpv4Direct(string5, n).thenAccept(arg_0 -> this.lambda$tryConnectionStep$53(roomState, directMode, atomicBoolean, string5, n, arg_0)));
                             if (bl2 && !bl) {
                                 int n7 = roomState.roomInfo.getHostPort();
                                 VoxLinkMod.LOGGER.info("[Connection] Wave 1: CGNAT also try localIp MC port {}:{}", (Object)string5, (Object)n7);
@@ -3178,15 +3247,14 @@ public class ConnectionManager {
         CompletableFuture.supplyAsync(() -> this.getOrCreateUdpArray(n, bl, StunDetector.getAllStunUrls())).thenAccept(udpSocketArray -> {
             if (this.roomManager.currentRoom.get() == roomState) {
                 if (udpSocketArray != null && !udpSocketArray.punchers.isEmpty()) {
-                    Object object2;
                     List<UdpHolePuncher> list = udpSocketArray.punchers;
                     List<StunProbe.PublicMappedAddress> list2 = udpSocketArray.mappedAddrs;
                     ArrayList<String> arrayList = new ArrayList<String>();
                     ArrayList<String> arrayList2 = new ArrayList<String>();
                     for (int i = 0; i < list.size(); ++i) {
-                        object2 = "joiner_birthday_" + i;
-                        arrayList2.add((String)object2);
-                        this.activeHolePunchers.put((String)object2, list.get(i));
+                        String joinerId = "joiner_birthday_" + i;
+                        arrayList2.add(joinerId);
+                        this.activeHolePunchers.put(joinerId, list.get(i));
                         StunProbe.PublicMappedAddress object3 = i < list2.size() ? list2.get(i) : null;
                         arrayList.add(object3 != null ? String.valueOf(object3.port()) : "0");
                     }
@@ -3201,19 +3269,19 @@ public class ConnectionManager {
                         this.showConnectFailed(roomState, "voxlink.connection.no_mapped_addr");
                     } else {
                         VoxLinkMod.LOGGER.info("[BirthdayPunch] Prepare {} sockets, mapped ports: {}", (Object)list.size(), arrayList);
-                        object2 = new JsonObject();
-                        object2.addProperty("joinerMappedIp", publicMappedAddress.ip());
-                        object2.addProperty("joinerMappedPort", (Number)publicMappedAddress.port());
-                        object2.addProperty("joinerSymmetric", Boolean.valueOf(true));
+                        JsonObject payload = new JsonObject();
+                        payload.addProperty("joinerMappedIp", publicMappedAddress.ip());
+                        payload.addProperty("joinerMappedPort", (Number)publicMappedAddress.port());
+                        payload.addProperty("joinerSymmetric", Boolean.valueOf(true));
                         if (bl) {
-                            object2.addProperty("joinerEasySym", Boolean.valueOf(true));
+                            payload.addProperty("joinerEasySym", Boolean.valueOf(true));
                         }
-                        object2.add("joinerMappedPorts", (JsonElement)new JsonArray());
+                        payload.add("joinerMappedPorts", (JsonElement)new JsonArray());
                         for (StunProbe.PublicMappedAddress publicMappedAddress3 : list2) {
                             if (publicMappedAddress3 == null || publicMappedAddress3.port() <= 0) continue;
-                            object2.getAsJsonArray("joinerMappedPorts").add((Number)publicMappedAddress3.port());
+                            payload.getAsJsonArray("joinerMappedPorts").add((Number)publicMappedAddress3.port());
                         }
-                        ((CompletableFuture)this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), false, "reverse_holepunch_offer", (JsonObject)object2, "host").thenAccept(apiResponse -> {
+                        ((CompletableFuture)this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), false, "reverse_holepunch_offer", payload, "host").thenAccept(apiResponse -> {
                             if (!apiResponse.success) {
                                 VoxLinkMod.LOGGER.error("[BirthdayPunch] Send reverse_holepunch_offer failed: {}", (Object)apiResponse.error);
                             }
@@ -3443,29 +3511,28 @@ public class ConnectionManager {
                         }
                         catch (Exception exception) {}
                     } else {
-                        UdpHolePuncher udpHolePuncher22;
                         VoxLinkMod.LOGGER.info("[BirthdayPunch] Socket #{} won! Connected to {}:{}", new Object[]{n2, string, n});
                         udpHolePuncher.markSocketTransferred();
                         this.stopAllPunchingAfterHostBridge();
-                        for (UdpHolePuncher udpHolePuncher22 : list) {
-                            if (udpHolePuncher22 == udpHolePuncher) continue;
+                        for (UdpHolePuncher other : list) {
+                            if (other == udpHolePuncher) continue;
                             try {
-                                udpHolePuncher22.stopPunch();
-                                udpHolePuncher22.close();
+                                other.stopPunch();
+                                other.close();
                             }
                             catch (Exception exception) {}
                         }
                         udpHolePuncher.stopPunch();
                         DatagramSocket datagramSocket2 = datagramSocket;
-                        udpHolePuncher22 = udpHolePuncher;
+                        UdpHolePuncher winnerPuncher = udpHolePuncher;
                         this.scheduler.submit(() -> {
                             try {
-                                this.establishUdpTransport(roomState, datagramSocket2, udpHolePuncher22, new InetSocketAddress(string, n), "joiner", false, null);
+                                this.establishUdpTransport(roomState, datagramSocket2, winnerPuncher, new InetSocketAddress(string, n), "joiner", false, null);
                             }
                             catch (Exception exception) {
                                 VoxLinkMod.LOGGER.error("[BirthdayPunch] Transport create failed: {}", (Object)exception.getMessage());
                                 try {
-                                    udpHolePuncher22.close();
+                                    winnerPuncher.close();
                                 }
                                 catch (Exception exception2) {
                                     // empty catch block
@@ -3687,12 +3754,10 @@ public class ConnectionManager {
                 }
             }, 20L, TimeUnit.SECONDS);
         } else {
-            String string;
-            Object object;
             ArrayList<RoomInfo.PeerInfo> arrayList = new ArrayList<RoomInfo.PeerInfo>();
             for (RoomInfo.PeerInfo peerInfo3 : roomState.roomInfo.getPeers()) {
-                object = peerInfo3.natType;
-                if (object == null || peerInfo3.mappedIp == null || peerInfo3.mappedPort <= 0 || this.isRelayPeerFailed(peerInfo3.clientId) || this.activeUdpTransports.get(peerInfo3.clientId) == null || ((String)object).contains("sym") || ((String)object).contains("strict") || ((String)object).equals("unknown")) continue;
+                String nat = peerInfo3.natType;
+                if (nat == null || peerInfo3.mappedIp == null || peerInfo3.mappedPort <= 0 || this.isRelayPeerFailed(peerInfo3.clientId) || this.activeUdpTransports.get(peerInfo3.clientId) == null || nat.contains("sym") || nat.contains("strict") || nat.equals("unknown")) continue;
                 if (!ProtocolNegotiator.supportsRelay(peerInfo3)) {
                     VoxLinkMod.LOGGER.info("[Relay] Candidate {} is legacy, skip", (Object)peerInfo3.clientId);
                     continue;
@@ -3718,11 +3783,11 @@ public class ConnectionManager {
                 return Long.compare(reliableUdpTransport != null ? reliableUdpTransport.getRtoMs() : Long.MAX_VALUE, reliableUdpTransport2 != null ? reliableUdpTransport2.getRtoMs() : Long.MAX_VALUE);
             });
             int n = Math.min(3, arrayList.size());
-            object = arrayList.subList(0, n);
+            List<RoomInfo.PeerInfo> peers = arrayList.subList(0, n);
             RoomInfo.PeerInfo peerInfo4 = null;
             for (RoomInfo.PeerInfo peerInfo5 : roomState.roomInfo.getPeers()) {
-                string = peerInfo5.natType;
-                if (string == null || !string.contains("sym") && !string.contains("strict") && !string.equals("unknown")) continue;
+                String natSym = peerInfo5.natType;
+                if (natSym == null || !natSym.contains("sym") && !natSym.contains("strict") && !natSym.equals("unknown")) continue;
                 if (!ProtocolNegotiator.supportsRelay(peerInfo5)) {
                     VoxLinkMod.LOGGER.info("[Relay] Target Sym player {} is legacy, skip relay", (Object)peerInfo5.clientId);
                     continue;
@@ -3736,23 +3801,23 @@ public class ConnectionManager {
                 this.showConnectFailed(roomState, "voxlink.connection.relay_unavailable");
                 return;
             }
-            this.currentRelayPeer.set(((RoomInfo.PeerInfo)object.get((int)0)).clientId);
+            this.currentRelayPeer.set(peers.get(0).clientId);
             VoxLinkMod.LOGGER.info("[Relay] Parallel try {} Cone relays, target Sym={}", (Object)n, (Object)peerInfo4.clientId);
             for (int i = 0; i < n; ++i) {
                 RoomInfo.PeerInfo peerInfo5;
-                peerInfo5 = (RoomInfo.PeerInfo)object.get(i);
-                string = new JsonObject();
-                string.addProperty("targetClientId", peerInfo4.clientId);
-                string.addProperty("targetIp", peerInfo4.mappedIp);
-                string.addProperty("targetPort", (Number)peerInfo4.mappedPort);
-                this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), true, "relay_setup", (JsonObject)string, peerInfo5.clientId);
+                peerInfo5 = peers.get(i);
+                JsonObject payload = new JsonObject();
+                payload.addProperty("targetClientId", peerInfo4.clientId);
+                payload.addProperty("targetIp", peerInfo4.mappedIp);
+                payload.addProperty("targetPort", (Number)peerInfo4.mappedPort);
+                this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), true, "relay_setup", payload, peerInfo5.clientId);
                 JsonObject jsonObject = new JsonObject();
                 jsonObject.addProperty("relayIp", peerInfo5.mappedIp);
                 jsonObject.addProperty("relayPort", (Number)peerInfo5.mappedPort);
                 this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), true, "relay_notify", jsonObject, peerInfo4.clientId);
                 VoxLinkMod.LOGGER.info("[Relay] Concurrent #{} relay={} (load={}) {}:{}", new Object[]{i + 1, peerInfo5.clientId, relayBridge.getRelayCountForPeer(peerInfo5.clientId), peerInfo5.mappedIp, peerInfo5.mappedPort});
             }
-            this.relayFailoverTask = this.scheduler.schedule(() -> this.lambda$tryRelay$107(roomState, n, (List)object), 8L, TimeUnit.SECONDS);
+            this.relayFailoverTask = this.scheduler.schedule(() -> this.lambda$tryRelay$107(roomState, n, peers), 8L, TimeUnit.SECONDS);
         }
     }
 
@@ -3916,16 +3981,15 @@ public class ConnectionManager {
                                     }
                                     catch (Exception exception) {}
                                 } else if (this.connectionWon.compareAndSet(false, true) || this.relayConnectedSignaled && !this.activeUdpTransports.containsKey("relay_cone")) {
-                                    UdpHolePuncher udpHolePuncher22;
                                     VoxLinkMod.LOGGER.info("[Relay] Sym->Cone socket#{} punch success", (Object)n4);
                                     udpHolePuncher.markSocketTransferred();
                                     this.stopAllPunchingAfterHostBridge();
                                     udpHolePuncher.stopPunch();
-                                    for (UdpHolePuncher udpHolePuncher22 : arrayList) {
-                                        if (udpHolePuncher22 == udpHolePuncher) continue;
+                                    for (UdpHolePuncher other : arrayList) {
+                                        if (other == udpHolePuncher) continue;
                                         try {
-                                            udpHolePuncher22.cancel();
-                                            udpHolePuncher22.close();
+                                            other.cancel();
+                                            other.close();
                                         }
                                         catch (Exception exception) {}
                                     }
@@ -3935,9 +3999,9 @@ public class ConnectionManager {
                                     roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.relay.connected_via", (Object[])new Object[0]));
                                     roomState.roomInfo.setUsingRelay(true);
                                     this.startUdpPunchBridge(roomState, reliableUdpTransport);
-                                    udpHolePuncher22 = new JsonObject();
-                                    udpHolePuncher22.addProperty("clientId", roomState.roomInfo.getClientId());
-                                    this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), false, "relay_ready", (JsonObject)udpHolePuncher22, "host").exceptionally(throwable -> {
+                                    JsonObject relayReady = new JsonObject();
+                                    relayReady.addProperty("clientId", roomState.roomInfo.getClientId());
+                                    this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), false, "relay_ready", relayReady, "host").exceptionally(throwable -> {
                                         VoxLinkMod.LOGGER.debug("relay_ready send failed: {}", (Object)throwable.getMessage());
                                         return null;
                                     });
@@ -4047,7 +4111,7 @@ public class ConnectionManager {
                         }
                     }
                     if (reliableUdpTransport != null) {
-                        ArrayList arrayList = new ArrayList();
+                        ArrayList<UdpHolePuncher> arrayList = new ArrayList<UdpHolePuncher>();
                         AtomicBoolean atomicBoolean = new AtomicBoolean(false);
                         String string4 = string3;
                         int n3 = n;
@@ -4079,24 +4143,23 @@ public class ConnectionManager {
                                         }
                                         catch (Exception exception) {}
                                     } else {
-                                        UdpHolePuncher udpHolePuncher22;
                                         VoxLinkMod.LOGGER.info("[Relay] Cone->Sym socket#{} punch success", (Object)n4);
                                         udpHolePuncher.markSocketTransferred();
-                                        for (UdpHolePuncher udpHolePuncher22 : arrayList) {
-                                            if (udpHolePuncher22 == udpHolePuncher) continue;
+                                        for (UdpHolePuncher other : arrayList) {
+                                            if (other == udpHolePuncher) continue;
                                             try {
-                                                udpHolePuncher22.cancel();
-                                                udpHolePuncher22.close();
+                                                other.cancel();
+                                                other.close();
                                             }
                                             catch (Exception exception) {}
                                         }
-                                        ReliableUdpTransport reliableUdpTransport2 = new ReliableUdpTransport(datagramSocket, new InetSocketAddress(string4, n3));
-                                        reliableUdpTransport2.start();
-                                        this.activeUdpTransports.put(string5 != null ? string5 : "sym_relayed", reliableUdpTransport2);
-                                        RelayBridge.getInstance(this.scheduler).startRelay("host", string5 != null ? string5 : "sym", reliableUdpTransport2, reliableUdpTransport2);
-                                        udpHolePuncher22 = new JsonObject();
-                                        udpHolePuncher22.addProperty("forClientId", string5 != null ? string5 : "sym");
-                                        this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), false, "relay_accept", (JsonObject)udpHolePuncher22, "host");
+                                        ReliableUdpTransport relayTransport = new ReliableUdpTransport(datagramSocket, new InetSocketAddress(string4, n3));
+                                        relayTransport.start();
+                                        this.activeUdpTransports.put(string5 != null ? string5 : "sym_relayed", relayTransport);
+                                        RelayBridge.getInstance(this.scheduler).startRelay("host", string5 != null ? string5 : "sym", relayTransport, relayTransport);
+                                        JsonObject relayAccept = new JsonObject();
+                                        relayAccept.addProperty("forClientId", string5 != null ? string5 : "sym");
+                                        this.signalingClient.sendSignal(roomState.roomInfo.getCode(), roomState.roomInfo.getToken(), false, "relay_accept", relayAccept, "host");
                                     }
                                 }
                             })).exceptionally(throwable -> {
@@ -4115,10 +4178,10 @@ public class ConnectionManager {
                         this.scheduler.schedule(() -> {
                             if (!atomicBoolean.get()) {
                                 VoxLinkMod.LOGGER.warn("[Relay] Cone->Sym relay punch timeout (8s)");
-                                for (UdpHolePuncher udpHolePuncher : arrayList) {
+                                for (UdpHolePuncher otherPuncher : arrayList) {
                                     try {
-                                        udpHolePuncher.cancel();
-                                        udpHolePuncher.close();
+                                        otherPuncher.cancel();
+                                        otherPuncher.close();
                                     }
                                     catch (Exception exception) {}
                                 }
@@ -4651,10 +4714,10 @@ public class ConnectionManager {
         roomState.roomInfo.setConnectionMode(I18n.format((String)"voxlink.connection.connected", (Object[])new Object[0]));
         this.stopAllPunchingAfterHostBridge();
         P2PBridge.startUdpHostBridgeForClient(string, reliableUdpTransport, n, () -> {
-            ReliableUdpTransport reliableUdpTransport = this.activeUdpTransports.remove(string);
-            if (reliableUdpTransport != null) {
+            ReliableUdpTransport removed = this.activeUdpTransports.remove(string);
+            if (removed != null) {
                 try {
-                    reliableUdpTransport.close();
+                    removed.close();
                 }
                 catch (Exception exception) {
                     // empty catch block
@@ -4679,10 +4742,10 @@ public class ConnectionManager {
             String string2 = string + "_old";
             this.oldUdpTransports.put(string2, reliableUdpTransport2);
             this.scheduler.schedule(() -> {
-                ReliableUdpTransport reliableUdpTransport = this.oldUdpTransports.remove(string2);
-                if (reliableUdpTransport != null) {
+                ReliableUdpTransport oldTransport = this.oldUdpTransports.remove(string2);
+                if (oldTransport != null) {
                     try {
-                        reliableUdpTransport.close();
+                        oldTransport.close();
                     }
                     catch (Exception exception) {
                         // empty catch block
@@ -4784,7 +4847,7 @@ public class ConnectionManager {
         this.failedRelayPeers.clear();
     }
 
-    private /* synthetic */ void lambda$tryRelay$107(RoomManager.RoomState roomState, int n, List list) {
+    private /* synthetic */ void lambda$tryRelay$107(RoomManager.RoomState roomState, int n, List<RoomInfo.PeerInfo> list) {
         if (!this.connectionWon.get() && this.roomManager.currentRoom.get() == roomState) {
             VoxLinkMod.LOGGER.warn("[Relay] Parallel relay all timeout, mark {} failed", (Object)n);
             for (RoomInfo.PeerInfo peerInfo : list) {
@@ -4894,7 +4957,7 @@ public class ConnectionManager {
         }
     }
 
-    private /* synthetic */ void lambda$handleHostPunchInfo$27(String string, ArrayList arrayList) {
+    private /* synthetic */ void lambda$handleHostPunchInfo$27(String string, ArrayList<UdpHolePuncher> arrayList) {
         if (this.hostPunching) {
             VoxLinkMod.LOGGER.info("[HostPunchInfo] 120s fallback cleanup host socket client={}", (Object)string);
             this.hostPunching = false;
@@ -4920,7 +4983,7 @@ public class ConnectionManager {
     private /* synthetic */ void lambda$sendHolepunchOffer$13(boolean bl, String string, JsonObject jsonObject, UdpHolePuncher udpHolePuncher, RoomManager.RoomState roomState, String string2, int n, Object[] objectArray) {
         StunProbe.PublicMappedAddress publicMappedAddress = (StunProbe.PublicMappedAddress)objectArray[0];
         StunProbe.PublicMappedAddress publicMappedAddress2 = (StunProbe.PublicMappedAddress)objectArray[1];
-        List list = (List)objectArray[2];
+        List<StunProbe.PublicMappedAddress> list = (List<StunProbe.PublicMappedAddress>) objectArray[2];
         StunProbe.PublicMappedAddress publicMappedAddress3 = null;
         boolean bl2 = false;
         boolean bl3 = bl;
@@ -5014,10 +5077,10 @@ public class ConnectionManager {
         String string3 = string2;
         this.scheduler.schedule(() -> {
             if (!this.hostPunching && this.activeHolePunchers.containsKey("host")) {
-                UdpHolePuncher udpHolePuncher = this.activeHolePunchers.remove("host");
-                if (udpHolePuncher != null) {
+                UdpHolePuncher hostPuncher = this.activeHolePunchers.remove("host");
+                if (hostPuncher != null) {
                     try {
-                        udpHolePuncher.close();
+                        hostPuncher.close();
                     }
                     catch (Exception exception) {
                         // empty catch block
@@ -5035,13 +5098,13 @@ public class ConnectionManager {
         StunProbe.PublicMappedAddress publicMappedAddress2 = null;
         ArrayList<StunProbe.PublicMappedAddress> arrayList = null;
         if (udpHolePuncher != null) {
-            Object object;
+            StunProbe.PublicMappedAddress[] addrs;
             try {
                 List<String> list = StunDetector.getAllStunUrls();
                 VoxLinkMod.LOGGER.info("[RoomManager] Host NAT: {} \u2014 8 concurrent STUN ({} servers)", (Object)(string != null ? string : "null"), (Object)list.size());
-                object = StunProbe.discoverMappedAddressRace(udpHolePuncher.getSocket(), list, 2);
-                publicMappedAddress = object[0];
-                publicMappedAddress2 = object[1];
+                addrs = StunProbe.discoverMappedAddressRace(udpHolePuncher.getSocket(), list, 2);
+                publicMappedAddress = addrs[0];
+                publicMappedAddress2 = addrs[1];
             }
             catch (Exception exception) {
                 VoxLinkMod.LOGGER.warn("[RoomManager] Punch socket STUN failed: {}", (Object)exception.getMessage());
@@ -5050,28 +5113,28 @@ public class ConnectionManager {
                 int n = PunchProfile.HARDSYM.hardSymSocketCount;
                 VoxLinkMod.LOGGER.info("[RoomManager] Symmetric NAT, pre-create {} birthday sockets into holepunch_offer", (Object)n);
                 arrayList = new ArrayList<StunProbe.PublicMappedAddress>();
-                object = new ArrayList();
+                ArrayList<CompletableFuture<StunProbe.PublicMappedAddress>> futures = new ArrayList<CompletableFuture<StunProbe.PublicMappedAddress>>();
                 int n2 = 0;
                 while (n2 < n) {
                     int n3 = n2++;
-                    ((ArrayList)object).add(CompletableFuture.supplyAsync(() -> {
-                        UdpHolePuncher udpHolePuncher = new UdpHolePuncher();
-                        this.applyPunchTemplate(udpHolePuncher);
+                    futures.add(CompletableFuture.supplyAsync(() -> {
+                        UdpHolePuncher puncher = new UdpHolePuncher();
+                        this.applyPunchTemplate(puncher);
                         try {
-                            udpHolePuncher.createSocket();
+                            puncher.createSocket();
                         }
                         catch (Exception exception) {
                             return null;
                         }
-                        StunProbe.PublicMappedAddress[] publicMappedAddressArray = StunProbe.discoverMappedAddressRace(udpHolePuncher.getSocket(), StunDetector.getAllStunUrls(), 1);
-                        StunProbe.PublicMappedAddress publicMappedAddress = publicMappedAddressArray[0];
-                        if (publicMappedAddress != null) {
-                            String string = "host_birthday_" + n3;
-                            this.activeHolePunchers.put(string, udpHolePuncher);
-                            return publicMappedAddress;
+                        StunProbe.PublicMappedAddress[] race = StunProbe.discoverMappedAddressRace(puncher.getSocket(), StunDetector.getAllStunUrls(), 1);
+                        StunProbe.PublicMappedAddress addr = race[0];
+                        if (addr != null) {
+                            String key = "host_birthday_" + n3;
+                            this.activeHolePunchers.put(key, puncher);
+                            return addr;
                         }
                         try {
-                            udpHolePuncher.close();
+                            puncher.close();
                         }
                         catch (Exception exception) {
                             // empty catch block
@@ -5080,18 +5143,16 @@ public class ConnectionManager {
                     }));
                 }
                 try {
-                    CompletableFuture.allOf(((ArrayList)object).toArray(new CompletableFuture[0])).get(5L, TimeUnit.SECONDS);
+                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(5L, TimeUnit.SECONDS);
                 }
                 catch (Exception exception) {
                     VoxLinkMod.LOGGER.warn("[RoomManager] Birthday socket create partial timeout: {}", (Object)exception.getMessage());
                 }
-                Iterator iterator = ((ArrayList)object).iterator();
-                while (iterator.hasNext()) {
-                    CompletableFuture completableFuture = (CompletableFuture)iterator.next();
+                for (CompletableFuture<StunProbe.PublicMappedAddress> future : futures) {
                     try {
-                        StunProbe.PublicMappedAddress publicMappedAddress3 = completableFuture.getNow(null);
-                        if (publicMappedAddress3 == null) continue;
-                        arrayList.add(publicMappedAddress3);
+                        StunProbe.PublicMappedAddress addr3 = future.getNow(null);
+                        if (addr3 == null) continue;
+                        arrayList.add(addr3);
                     }
                     catch (Exception exception) {}
                 }
@@ -5099,16 +5160,6 @@ public class ConnectionManager {
             }
         }
         return new Object[]{publicMappedAddress, publicMappedAddress2, arrayList};
-    }
-
-    private static /* synthetic */ void lambda$getOrCreateUdpArray$1(AtomicInteger atomicInteger, AtomicInteger atomicInteger2, int n, ArrayList arrayList, CompletableFuture completableFuture, Object object, Object object2) {
-        atomicInteger.incrementAndGet();
-        if (object != null) {
-            atomicInteger2.incrementAndGet();
-        }
-        if (atomicInteger2.get() >= n || atomicInteger.get() == arrayList.size()) {
-            completableFuture.complete(null);
-        }
     }
 
     private static /* synthetic */ Object[] lambda$getOrCreateUdpArray$0(UdpHolePuncher udpHolePuncher, List list) {

@@ -29,6 +29,7 @@ package icu.wuhui.voxlink;
 import icu.wuhui.voxlink.VoxLinkMod;
 import icu.wuhui.voxlink.network.PeerServer;
 import icu.wuhui.voxlink.network.SignalingClient;
+import icu.wuhui.voxlink.network.UpdateChecker;
 import icu.wuhui.voxlink.network.StunProbe;
 import icu.wuhui.voxlink.network.TopologyClient;
 import icu.wuhui.voxlink.room.RoomManager;
@@ -127,7 +128,7 @@ public class VoxLinkClient {
         catch (Exception exception) {
             VoxLinkMod.LOGGER.warn("PeerServer.start failed: {}", (Object)exception.getMessage());
         }
-        openScreenKey = new KeyBinding("voxlink.gui.title", 47, "VoxLink");
+        openScreenKey = new KeyBinding("voxlink.gui.title", 47, "PeerLink");
         ClientRegistry.registerKeyBinding((KeyBinding)openScreenKey);
         VoxLinkMod.LOGGER.info("VoxLink client initialized (V key + menu buttons)");
     }
@@ -152,6 +153,7 @@ public class VoxLinkClient {
 
     @SubscribeEvent
     public static void onClientPlayerLoggingIn(PlayerEvent.PlayerLoggedInEvent playerLoggedInEvent) {
+        UpdateChecker.checkOnce();
     }
 
     @SubscribeEvent

@@ -409,12 +409,13 @@ public class P2PBridge {
                     catch (IOException iOException) {}
                     continue;
                 }
-                object = ((Socket)object2).getInetAddress() instanceof Inet6Address ? "MC->Host(IPv6)" : "MC->Host";
+                String pairLabel = ((Socket)object2).getInetAddress() instanceof Inet6Address ? "MC->Host(IPv6)" : "MC->Host";
+                object = pairLabel;
                 String string = ((Socket)object2).getInetAddress() instanceof Inet6Address ? "Host(IPv6)->MC" : "Host->MC";
                 BridgePair bridgePair = new BridgePair(socket2, (Socket)object2);
                 activePairs.add(bridgePair);
                 ExecutorService executorService = P2PBridge.getOrCreateExecutor();
-                executorService.submit(() -> P2PBridge.lambda$acceptJoinerConnectionPreconnected$14(bridgePair, (String)object));
+                executorService.submit(() -> P2PBridge.acceptPreconnectedBody(bridgePair, pairLabel));
                 executorService.submit(() -> P2PBridge.bridge(bridgePair, bridgePair.mc, bridgePair.client, string));
             }
             return;
@@ -429,7 +430,12 @@ public class P2PBridge {
             if (socket.isClosed()) {
                 return;
             }
-            socket.close();
+            try {
+                socket.close();
+            }
+            catch (IOException iOException2) {
+                // empty catch block
+            }
             return;
         }
         finally {
@@ -868,8 +874,9 @@ public class P2PBridge {
                 }
                 joinerBridgeConnected.set(true);
                 LOGGER.info("UDP: MC client connected to joiner bridge");
+                Socket acceptedFinal = accepted;
                 ExecutorService executor = P2PBridge.getOrCreateExecutor();
-                executor.submit(() -> P2PBridge.lambda$acceptUdpJoinerConnections$23(reliableUdpTransport, accepted));
+                executor.submit(() -> P2PBridge.acceptUdpBody(reliableUdpTransport, acceptedFinal));
                 P2PBridge.bridgeMcToUdp(reliableUdpTransport, accepted, null);
             }
             catch (IOException iOException) {
@@ -1073,11 +1080,11 @@ public class P2PBridge {
         }
     }
 
-    private static /* synthetic */ void lambda$acceptUdpJoinerConnections$23(ReliableUdpTransport reliableUdpTransport, Socket socket) {
+    private static void acceptUdpBody(ReliableUdpTransport reliableUdpTransport, Socket socket) {
         P2PBridge.bridgeUdpToMc(reliableUdpTransport, socket, null);
     }
 
-    private static /* synthetic */ void lambda$acceptJoinerConnectionPreconnected$14(BridgePair bridgePair, String string) {
+    private static void acceptPreconnectedBody(BridgePair bridgePair, String string) {
         P2PBridge.bridge(bridgePair, bridgePair.client, bridgePair.mc, string);
     }
 

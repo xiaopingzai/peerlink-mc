@@ -5,6 +5,9 @@ import icu.wuhui.voxlink.VoxLinkMod;
 import icu.wuhui.voxlink.config.LogUploadState;
 import icu.wuhui.voxlink.config.VoxLinkConfig;
 import icu.wuhui.voxlink.room.RoomManager;
+import icu.wuhui.voxlink.room.RoomInfo;
+import icu.wuhui.voxlink.modsync.ModSyncGuestService;
+import icu.wuhui.voxlink.modsync.ModSyncSelectScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -22,6 +25,9 @@ extends VoxLinkScreenBase {
     private static final int CONFIG_BTN = 12;
     private static final int LOGS_BTN = 13;
     private static final int RELAY_BTN = 14;
+    private static final int VIEWMODS_BTN = 15;
+    private static final int LINKS_BTN = 16;
+    private static final int FEEDBACK_BTN = 17;
     private final GuiScreen parentScreen;
 
     public VoxLinkScreen() {
@@ -50,12 +56,19 @@ extends VoxLinkScreenBase {
         this.addButton(JOIN_BTN, centerX - 100, y, 200, 20, I18n.format("voxlink.gui.join_room", new Object[0]));
         y += 26;
         if (inRoom) {
-            this.addButton(MANAGE_BTN, centerX - 100, y, 200, 20, I18n.format("voxlink.gui.manage_room", new Object[0]));
+            RoomInfo currentRoom = roomManager.getCurrentRoom();
+            if (currentRoom != null && currentRoom.isHost()) {
+                this.addButton(MANAGE_BTN, centerX - 100, y, 200, 20, I18n.format("voxlink.gui.manage_room", new Object[0]));
+            } else if (currentRoom != null && ModSyncGuestService.getCachedDiff(currentRoom.getCode()) != null) {
+                this.addButton(VIEWMODS_BTN, centerX - 100, y, 200, 20, I18n.format("voxlink.view_host_mods", new Object[0]));
+            }
         }
         super.addButton(TERRA_BTN, this.width / 2 - 100, 260, 200, 20, I18n.format("voxlink.download_terracotta", new Object[0]));
         super.addButton(CONFIG_BTN, this.width / 2 - 100, 284, 200, 20, I18n.format("voxlink.simple_config", new Object[0]));
         super.addButton(LOGS_BTN, this.width / 2 - 100, 308, 200, 20, I18n.format("voxlink.upload_logs", new Object[0]));
         super.addButton(RELAY_BTN, this.width / 2 - 100, 332, 200, 20, I18n.format("voxlink.p2p_relay", new Object[0]));
+        super.addButton(LINKS_BTN, this.width / 2 - 100, 356, 200, 20, I18n.format("voxlink.links.title", new Object[0]));
+        super.addButton(FEEDBACK_BTN, this.width / 2 - 100, 380, 200, 20, I18n.format("voxlink.feedback", new Object[0]));
     }
 
     @Override
@@ -65,7 +78,7 @@ extends VoxLinkScreenBase {
             return;
         }
         if (guiButton.id == CONFIG_BTN) {
-            VoxLinkMod.LOGGER.info("Simple config not implemented yet");
+            Minecraft.getMinecraft().displayGuiScreen(new ConfigScreen(this));
             return;
         }
         if (guiButton.id == LOGS_BTN) {
@@ -91,6 +104,18 @@ extends VoxLinkScreenBase {
                 Minecraft.getMinecraft().displayGuiScreen(new ManageRoomScreen(this));
             } else {
                 VoxLinkChat.print(new TextComponentString(I18n.format("voxlink.error.not_in_room", new Object[0])));
+            }
+        } else if (guiButton.id == LINKS_BTN) {
+            Minecraft.getMinecraft().displayGuiScreen(new RelatedLinksScreen(this));
+        } else if (guiButton.id == FEEDBACK_BTN) {
+            Minecraft.getMinecraft().displayGuiScreen(new FeedbackScreen(this));
+        } else if (guiButton.id == VIEWMODS_BTN) {
+            RoomManager roomManager = VoxLinkMod.getRoomManager();
+            RoomInfo currentRoom = roomManager != null ? roomManager.getCurrentRoom() : null;
+            if (currentRoom != null) {
+                ModSyncGuestService.DiffResult diff = ModSyncGuestService.getCachedDiff(currentRoom.getCode());
+                String scope = ModSyncGuestService.getCachedScope(currentRoom.getCode());
+                Minecraft.getMinecraft().displayGuiScreen(new ModSyncSelectScreen(currentRoom.getCode(), scope, diff, () -> Minecraft.getMinecraft().displayGuiScreen(this)));
             }
         } else {
             super.actionPerformed(guiButton);

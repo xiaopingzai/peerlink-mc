@@ -35,10 +35,10 @@ import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@Mod(modid="voxlink", name="VoxLink CV", version="1.1.9", acceptedMinecraftVersions="[1.12,1.12.2]", clientSideOnly=true)
+@Mod(modid="voxlink", name="PeerLink", version="1.1.9", acceptedMinecraftVersions="[1.12,1.12.2]", clientSideOnly=true)
 public class VoxLinkMod {
     public static final String MOD_ID = "voxlink";
-    public static final String NAME = "VoxLink";
+    public static final String NAME = "PeerLink";
     public static final String VERSION = "1.1.9";
     public static final String MOD_VERSION = "1.1.9";
     public static final Logger LOGGER = LogManager.getLogger((String)"voxlink");

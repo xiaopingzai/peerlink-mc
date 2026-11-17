@@ -305,7 +305,7 @@ public class UdpHolePuncher {
         }
         Selector selector2 = selector;
         int n5 = this.sessionNonce;
-        Thread recvThread = new Thread(() -> this.lambda$punchMultiSocket$1(selector2, hashMap, hashMap2, nArray, object4, atomicBoolean, l, completableFuture, n3, nArray2, consumer), "VoxLink-PunchRecvNIO");
+        Thread recvThread = new Thread(() -> this.recvNioBody(selector2, hashMap, hashMap2, nArray, object4, atomicBoolean, l, completableFuture, n3, nArray2, consumer), "VoxLink-PunchRecvNIO");
         recvThread.setDaemon(true);
         this.recvThreadsRef = Collections.singletonList(recvThread);
         recvThread.start();
@@ -1111,6 +1111,7 @@ public class UdpHolePuncher {
         for (n2 = 0; n2 < list.size(); ++n2) {
             peer = list.get(n2);
             int n5 = n2;
+            UdpHolePuncher peerFinal = peer;
             DatagramSocket datagramSocket = peer.getSocket();
             if (datagramSocket == null || datagramSocket.isClosed()) continue;
             try {
@@ -1119,7 +1120,7 @@ public class UdpHolePuncher {
             catch (Exception exception) {
                 // empty catch block
             }
-            Thread thread = new Thread(() -> this.lambda$punchMultiSocketLegacy$11(datagramSocket, nArray, peer, object2, atomicBoolean, n5, l, completableFuture, n3, nArray2, consumer), "VoxLink-PunchRecv-Legacy-" + n2);
+            Thread thread = new Thread(() -> this.recvLegacyBody(datagramSocket, nArray, peerFinal, object2, atomicBoolean, n5, l, completableFuture, n3, nArray2, consumer), "VoxLink-PunchRecv-Legacy-" + n5);
             thread.setDaemon(true);
             arrayList.add(thread);
             this.recvThreadsRef = arrayList;
@@ -1127,7 +1128,8 @@ public class UdpHolePuncher {
         }
         this.recvThreadsRef = arrayList.isEmpty() ? null : arrayList;
         n2 = list.size() <= 1 || this.skipFirewallDetection ? 1 : 0;
-        Thread sendThread = new Thread(() -> this.lambda$punchMultiSocketLegacy$12(n4, n2 != 0, object2, completableFuture, n3, nArray, nArray2, list, byArray, l), "VoxLink-PunchSend-Legacy");
+        int sendFlag = n2;
+        Thread sendThread = new Thread(() -> this.sendLegacyBody(n4, sendFlag != 0, object2, completableFuture, n3, nArray, nArray2, list, byArray, l), "VoxLink-PunchSend-Legacy");
         sendThread.setDaemon(true);
         this.sendThreadRef = sendThread;
         sendThread.start();
@@ -1150,7 +1152,7 @@ public class UdpHolePuncher {
     /*
      * WARNING - Removed try catching itself - possible behaviour change.
      */
-    private /* synthetic */ void lambda$punchMultiSocketLegacy$12(int n, boolean bl, Object object, CompletableFuture completableFuture, int n2, int[] nArray, int[] nArray2, List list, byte[] byArray, long l) {
+    private void sendLegacyBody(int n, boolean bl, Object object, CompletableFuture completableFuture, int n2, int[] nArray, int[] nArray2, List list, byte[] byArray, long l) {
         long l2 = System.currentTimeMillis();
         for (int i = 0; this.punching.get() && !this.holeOpen.get() && i < n; ++i) {
             Object object2;
@@ -1200,7 +1202,7 @@ public class UdpHolePuncher {
     /*
      * WARNING - Removed try catching itself - possible behaviour change.
      */
-    private /* synthetic */ void lambda$punchMultiSocketLegacy$11(DatagramSocket datagramSocket, int[] nArray, UdpHolePuncher udpHolePuncher, Object object, AtomicBoolean atomicBoolean, int n, long l, CompletableFuture completableFuture, int n2, int[] nArray2, Consumer consumer) {
+    private void recvLegacyBody(DatagramSocket datagramSocket, int[] nArray, UdpHolePuncher udpHolePuncher, Object object, AtomicBoolean atomicBoolean, int n, long l, CompletableFuture completableFuture, int n2, int[] nArray2, Consumer consumer) {
         byte[] byArray = new byte[64];
         DatagramPacket datagramPacket = new DatagramPacket(byArray, byArray.length);
         boolean bl = false;
@@ -1305,7 +1307,7 @@ public class UdpHolePuncher {
     /*
      * WARNING - Removed try catching itself - possible behaviour change.
      */
-    private /* synthetic */ void lambda$punchMultiSocket$1(Selector selector, HashMap hashMap, HashMap hashMap2, int[] nArray, Object object, AtomicBoolean atomicBoolean, long l, CompletableFuture completableFuture, int n, int[] nArray2, Consumer consumer) {
+    private void recvNioBody(Selector selector, HashMap hashMap, HashMap hashMap2, int[] nArray, Object object, AtomicBoolean atomicBoolean, long l, CompletableFuture completableFuture, int n, int[] nArray2, Consumer consumer) {
         ByteBuffer byteBuffer = ByteBuffer.allocate(64);
         boolean bl = false;
         try {

@@ -312,6 +312,9 @@ public class RoomManager {
                 this.startSignalPoll();
                 String clientId = "host_" + code;
                 this.topologyClient.onRoomJoined(code, hostToken, true, clientId, 0);
+
+                // ModSync：建房成功即后台构建本地清单（异步，失败不影响本房间）
+                icu.wuhui.voxlink.modsync.ModSyncManifestService.onRoomCreated(roomInfo);
                 try {
                     int bridgePort = P2PBridge.startHostBridge(natResult.port).get(5L, TimeUnit.SECONDS);
                     if (bridgePort > 0) {
@@ -1187,6 +1190,10 @@ public class RoomManager {
                 switch (string) {
                     case "join_request": {
                         this.connectionManager.handleJoinRequest(string2, jsonObject2);
+                        break;
+                    }
+                    case "mods_request": {
+                        icu.wuhui.voxlink.modsync.ModSyncManifestService.onModsRequest(jsonObject2);
                         break;
                     }
                     case "holepunch_offer": {

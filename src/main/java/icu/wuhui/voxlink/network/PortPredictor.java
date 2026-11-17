@@ -95,13 +95,13 @@ public final class PortPredictor {
 
     public static PredictResult predict(List<Integer> list) {
         if (list != null && !list.isEmpty()) {
-            int n;
             if (list.size() == 1) {
                 return new PredictResult(list.get(0), 200, "single_sample");
             }
             int n2 = PortPredictor.linearRegressionPredict(list);
             int n3 = PortPredictor.deltaPredict(list);
-            int n4 = n2 > 0 && n3 > 0 ? (int)Math.round((double)n2 * 0.6 + (double)n3 * 0.4) : (n = n2 > 0 ? n2 : n3);
+            int n4 = n2 > 0 && n3 > 0 ? (int)Math.round((double)n2 * 0.6 + (double)n3 * 0.4) : (n2 > 0 ? n2 : n3);
+            int n = n4;
             if (n < 1024) {
                 n = 1024;
             }

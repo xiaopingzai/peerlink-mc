@@ -10,7 +10,9 @@
  */
 package icu.wuhui.voxlink.ui;
 
+import java.io.IOException;
 import icu.wuhui.voxlink.VoxLinkMod;
+import icu.wuhui.voxlink.modsync.ModSyncGuestService;
 import icu.wuhui.voxlink.room.RoomInfo;
 import icu.wuhui.voxlink.room.RoomManager;
 import icu.wuhui.voxlink.ui.AttemptingJoinScreen;
@@ -61,7 +63,7 @@ extends VoxLinkScreenBase {
         }
     }
 
-    protected void keyTyped(char c, int n) {
+    protected void keyTyped(char c, int n) throws IOException {
         if (this.codeField.textboxKeyTyped(c, n) || this.passwordField.textboxKeyTyped(c, n)) {
             return;
         }
@@ -72,7 +74,7 @@ extends VoxLinkScreenBase {
         super.keyTyped(c, n);
     }
 
-    protected void mouseClicked(int n, int n2, int n3) {
+    protected void mouseClicked(int n, int n2, int n3) throws IOException {
         super.mouseClicked(n, n2, n3);
         JoinRoomScreen.handleFieldClick(this.codeField, n, n2);
         JoinRoomScreen.handleFieldClick(this.passwordField, n, n2);
@@ -109,7 +111,29 @@ extends VoxLinkScreenBase {
             return;
         }
         String string2 = this.passwordField.getText();
-        roomManager.joinRoom(string, string2).whenComplete((roomInfo, throwable) -> {
+        // ModSync 门控：先进门控选择屏（必装/全部/跳过），放行后再真正 joinRoom。
+        ModSyncGuestService.clearGateFor(string);
+        Minecraft.getMinecraft().displayGuiScreen((GuiScreen)new ModSyncGateScreen(this, string, string2));
+    }
+
+    /** 门控放行：由 ModSyncGateScreen 主线程回调进入真正加入流程。 */
+    public void proceedToJoin(String code, String password) {
+        this.startJoin(code, password);
+    }
+
+    /** 门控取消/返回：复位加入态并回到房间码输入本屏。 */
+    public void cancelGate() {
+        this.joining = false;
+        Minecraft.getMinecraft().displayGuiScreen((GuiScreen)this);
+    }
+
+    private void startJoin(String code, String password) {
+        RoomManager roomManager = VoxLinkMod.getRoomManager();
+        if (roomManager == null) {
+            this.joining = false;
+            return;
+        }
+        roomManager.joinRoom(code, password).whenComplete((roomInfo, throwable) -> {
             Minecraft minecraft = Minecraft.getMinecraft();
             minecraft.addScheduledTask(() -> {
                 if (throwable != null) {

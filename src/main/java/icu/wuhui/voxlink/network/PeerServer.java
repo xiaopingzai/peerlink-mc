@@ -139,7 +139,7 @@ public class PeerServer {
                 if (mc.isCallingFromMinecraftThread()) {
                     cachedGameVersion = mc.getVersion();
                 } else {
-                    mc.addScheduledTask(() -> PeerServer.lambda$refreshCache$2(mc));
+                    mc.addScheduledTask(() -> PeerServer.refreshCacheBody(mc));
                 }
             }
         }
@@ -198,7 +198,7 @@ public class PeerServer {
         return jsonObject;
     }
 
-    private static /* synthetic */ void lambda$refreshCache$2(Minecraft minecraft) {
+    private static void refreshCacheBody(Minecraft minecraft) {
         try {
             cachedGameVersion = minecraft.getVersion();
         }

@@ -58,6 +58,8 @@ public class VoxLinkConfig {
     private volatile boolean parallelP2P = true;
     private volatile boolean updateCheckEnabled = true;
     private volatile boolean useWebSocket = true;
+    private volatile boolean hostModSyncPublish = true;
+    private volatile boolean joinRequiredModsCheck = true;
 
     public static VoxLinkConfig load() {
         Path path = new File(Loader.instance().getConfigDir(), "voxlink.json").toPath();
@@ -81,6 +83,8 @@ public class VoxLinkConfig {
                 voxLinkConfig.parallelP2P = jsonObject.has("parallelP2P") ? jsonObject.get("parallelP2P").getAsBoolean() : true;
                 voxLinkConfig.updateCheckEnabled = jsonObject.has("updateCheckEnabled") ? jsonObject.get("updateCheckEnabled").getAsBoolean() : true;
                 voxLinkConfig.useWebSocket = jsonObject.has("useWebSocket") ? jsonObject.get("useWebSocket").getAsBoolean() : true;
+                voxLinkConfig.hostModSyncPublish = jsonObject.has("hostModSyncPublish") ? jsonObject.get("hostModSyncPublish").getAsBoolean() : true;
+                voxLinkConfig.joinRequiredModsCheck = jsonObject.has("joinRequiredModsCheck") ? jsonObject.get("joinRequiredModsCheck").getAsBoolean() : true;
                 boolean bl = voxLinkConfig.useWebSocket;
                 if (voxLinkConfig.serverUrl == null || voxLinkConfig.serverUrl.isEmpty()) {
                     voxLinkConfig.serverUrl = DEFAULT_SERVER_URL;
@@ -241,6 +245,22 @@ public class VoxLinkConfig {
 
     public void setUseWebSocket(boolean bl) {
         this.useWebSocket = bl;
+    }
+
+    public boolean isHostModSyncPublish() {
+        return this.hostModSyncPublish;
+    }
+
+    public void setHostModSyncPublish(boolean bl) {
+        this.hostModSyncPublish = bl;
+    }
+
+    public boolean isJoinRequiredModsCheck() {
+        return this.joinRequiredModsCheck;
+    }
+
+    public void setJoinRequiredModsCheck(boolean bl) {
+        this.joinRequiredModsCheck = bl;
     }
 
     public int getConfigVersion() {

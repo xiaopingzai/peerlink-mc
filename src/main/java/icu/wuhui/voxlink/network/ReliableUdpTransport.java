@@ -615,8 +615,6 @@ implements AutoCloseable {
     }
 
     private void recordLoss(boolean bl) {
-        int n;
-        double d;
         if (bl) {
             ++this.lossLostEvents;
         }
@@ -626,7 +624,8 @@ implements AutoCloseable {
             this.lossEvents = (this.lossEvents + 1) / 2;
         }
         double d2 = (double)this.lossLostEvents / (double)Math.max(this.lossEvents, 1);
-        if ((d < 0.03 ? 64 : (d2 < 0.08 ? 48 : (n = d2 < 0.15 ? 32 : 16))) != this.effectiveWindow) {
+        int n = d2 < 0.03 ? 64 : (d2 < 0.08 ? 48 : (d2 < 0.15 ? 32 : 16));
+        if (n != this.effectiveWindow) {
             this.effectiveWindow = n;
             LOGGER.debug("[ReliableUdp] congestion window {} (loss={}%)", (Object)n, (Object)((int)(d2 * 100.0)));
         }

@@ -90,6 +90,10 @@ public class SignalingClient {
         hashMap.put("poll_topology", "/topology/poll");
         hashMap.put("relay_register", "/relay/register");
         hashMap.put("relay_candidates", "/relay/candidates");
+        hashMap.put("publish_mod_manifest", "/room/mods/publish");
+        hashMap.put("get_room_mods", "/room/mods");
+        hashMap.put("request_room_mods", "/room/mods/request");
+        hashMap.put("answer_room_mods", "/room/mods/answer");
         return Collections.unmodifiableMap(hashMap);
     }
 
@@ -261,6 +265,45 @@ public class SignalingClient {
         jsonObject.addProperty("isHost", Boolean.valueOf(bl));
         jsonObject.addProperty("action", "leave_room");
         return this.postNoRetry(this.buildPath("leave_room"), jsonObject);
+    }
+
+    /** ModSync：房主创建房间后发布必装 Mod 清单（需 hostToken，服务端校验）。 */
+    public CompletableFuture<ApiResponse> publishModManifest(String string, String string2, JsonObject jsonObject) {
+        JsonObject jsonObject2 = new JsonObject();
+        jsonObject2.addProperty("code", string != null ? string : "");
+        jsonObject2.addProperty("token", string2 != null ? string2 : "");
+        jsonObject2.add("manifest", jsonObject != null ? jsonObject : new JsonObject());
+        jsonObject2.addProperty("action", "publish_mod_manifest");
+        return this.postNoRetry(this.buildPath("publish_mod_manifest"), jsonObject2);
+    }
+
+    /** ModSync：房客打洞前按房间号拉取必装清单（supported/ready/mods）。 */
+    public CompletableFuture<ApiResponse> getRoomMods(String string) {
+        JsonObject jsonObject2 = new JsonObject();
+        jsonObject2.addProperty("code", string != null ? string.toUpperCase() : "");
+        jsonObject2.addProperty("action", "get_room_mods");
+        return this.postNoRetry(this.buildPath("get_room_mods"), jsonObject2);
+    }
+
+    /** ModSync v2：房客按需请求清单（scope=required|all）；服务器缓存未命中时经信号向房主取。 */
+    public CompletableFuture<ApiResponse> requestRoomMods(String string, String string2) {
+        JsonObject jsonObject2 = new JsonObject();
+        jsonObject2.addProperty("code", string != null ? string.toUpperCase() : "");
+        jsonObject2.addProperty("scope", string2 != null && !string2.isEmpty() ? string2 : "required");
+        jsonObject2.addProperty("action", "request_room_mods");
+        return this.postNoRetry(this.buildPath("request_room_mods"), jsonObject2);
+    }
+
+    /** ModSync v2：房主应答按需请求（requestId 关联），服务器落缓存并唤醒房客长轮询。 */
+    public CompletableFuture<ApiResponse> answerRoomMods(String string, String string2, String string3, String string4, JsonObject jsonObject) {
+        JsonObject jsonObject2 = new JsonObject();
+        jsonObject2.addProperty("code", string != null ? string.toUpperCase() : "");
+        jsonObject2.addProperty("token", string2 != null ? string2 : "");
+        jsonObject2.addProperty("requestId", string3 != null ? string3 : "");
+        jsonObject2.addProperty("scope", string4 != null && !string4.isEmpty() ? string4 : "required");
+        jsonObject2.add("manifest", jsonObject != null ? jsonObject : new JsonObject());
+        jsonObject2.addProperty("action", "answer_room_mods");
+        return this.postNoRetry(this.buildPath("answer_room_mods"), jsonObject2);
     }
 
     public CompletableFuture<ApiResponse> listRooms(int n, int n2, String string, String string2) {

@@ -14,6 +14,7 @@
  */
 package icu.wuhui.voxlink.ui;
 
+import java.io.IOException;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -44,6 +45,8 @@ extends VoxLinkScreenBase {
     private static final int CARD_H = 46;
     private static final int CARD_GAP = 6;
     private static final int CARD_TOP = 78;
+    private static final int BAR_H = 28;
+    private static final int PAD = 10;
     private final GuiScreen parentScreen;
     private String selectedCategory = "all";
     private int page = 1;
@@ -75,8 +78,9 @@ extends VoxLinkScreenBase {
             String string = "all".equals(CATEGORIES[i][0]) ? I18n.format((String)"voxlink.gui.all", (Object[])new Object[0]) : I18n.format((String)CATEGORIES[i][1], (Object[])new Object[0]);
             this.addButton(200 + i, n9 + n6 * (n + n3), n10, n, n2, string);
         }
-        this.addButton(100, this.width / 2 - 110, this.height - 32, 60, 20, I18n.format((String)"voxlink.gui.prev_page", (Object[])new Object[0]));
-        this.addButton(101, this.width / 2 + 50, this.height - 32, 60, 20, I18n.format((String)"voxlink.gui.next_page", (Object[])new Object[0]));
+        int barY = this.height - BAR_H;
+        this.addButton(100, this.width - PAD - 126, barY, 60, 20, I18n.format((String)"voxlink.gui.prev_page", (Object[])new Object[0]));
+        this.addButton(101, this.width - PAD - 60, barY, 60, 20, I18n.format((String)"voxlink.gui.next_page", (Object[])new Object[0]));
         if (this.rooms.isEmpty() && !this.loading) {
             this.loadRooms();
         }
@@ -162,24 +166,33 @@ extends VoxLinkScreenBase {
         GuiScreen.drawRect((int)0, (int)0, (int)this.width, (int)this.height, (int)-1879048192);
         String string = I18n.format((String)"voxlink.gui.lobby", (Object[])new Object[0]);
         this.fontRenderer.drawString(string, (this.width - this.fontRenderer.getStringWidth(string)) / 2, 10, 0xFFFFFF);
-        String string2 = "VoxLink 1.1.9";
+        String string2 = "PeerLink 1.1.9";
         this.fontRenderer.drawString(string2, this.width - this.fontRenderer.getStringWidth(string2) - 6, 10, 0x888888);
-        int n3 = (this.width - 320) / 2;
+        int n3 = (this.width - CARD_W) / 2;
+        int barTop = this.height - BAR_H;
         this.hoverCard = -1;
         for (int i = 0; i < this.rooms.size() && i < 3; ++i) {
-            boolean bl;
             RoomEntry roomEntry = this.rooms.get(i);
-            int n4 = 78 + i * 52;
-            boolean bl2 = bl = n >= n3 && n <= n3 + 320 && n2 >= n4 && n2 <= n4 + 46;
+            int n4 = CARD_TOP + i * (CARD_H + CARD_GAP);
+            if (n4 + CARD_H > barTop - 6) {
+                continue;
+            }
+            boolean bl = n >= n3 && n <= n3 + CARD_W && n2 >= n4 && n2 <= n4 + CARD_H;
             if (bl) {
                 this.hoverCard = i;
             }
             int n5 = bl ? -1069522784 : -1071636432;
-            GuiScreen.drawRect((int)n3, (int)n4, (int)(n3 + 320), (int)(n4 + 46), (int)n5);
+            GuiScreen.drawRect((int)n3, (int)n4, (int)(n3 + CARD_W), (int)(n4 + CARD_H), (int)n5);
+            // 卡片描边
+            int border = bl ? -8921744 : -16777216;
+            GuiScreen.drawRect((int)n3, (int)n4, (int)(n3 + CARD_W), (int)(n4 + 1), (int)border);
+            GuiScreen.drawRect((int)n3, (int)(n4 + CARD_H - 1), (int)(n3 + CARD_W), (int)(n4 + CARD_H), (int)border);
+            GuiScreen.drawRect((int)n3, (int)n4, (int)(n3 + 1), (int)(n4 + CARD_H), (int)border);
+            GuiScreen.drawRect((int)(n3 + CARD_W - 1), (int)n4, (int)(n3 + CARD_W), (int)(n4 + CARD_H), (int)border);
             this.fontRenderer.drawString(roomEntry.name.isEmpty() ? roomEntry.code : roomEntry.name, n3 + 8, n4 + 6, 0xFFFFFF);
             String string3 = roomEntry.gameVersion + (roomEntry.loader.isEmpty() ? "" : "  " + roomEntry.loader);
             if (!string3.isEmpty()) {
-                this.fontRenderer.drawString(string3, n3 + 320 - 8 - this.fontRenderer.getStringWidth(string3), n4 + 6, 0x88CCFF);
+                this.fontRenderer.drawString(string3, n3 + CARD_W - 8 - this.fontRenderer.getStringWidth(string3), n4 + 6, 0x88CCFF);
             }
             String string4 = roomEntry.code;
             if (!roomEntry.category.isEmpty()) {
@@ -190,8 +203,8 @@ extends VoxLinkScreenBase {
                 string4 = string4 + "  " + I18n.format((String)"voxlink.gui.locked", (Object[])new Object[0]);
             }
             this.fontRenderer.drawString(string4, n3 + 8, n4 + 24, 0xAAAAAA);
-            String string5 = I18n.format((String)"voxlink.gui.click_to_join", (Object[])new Object[0]);
-            this.fontRenderer.drawString(string5, n3 + 320 - 8 - this.fontRenderer.getStringWidth(string5), n4 + 24, 0x666666);
+            String string5 = I18n.format((String)"voxlink.gui.click_to_join", (Object[])new Object[0]) + "  >";
+            this.fontRenderer.drawString(string5, n3 + CARD_W - 8 - this.fontRenderer.getStringWidth(string5), n4 + 24, bl ? 0xFFFFFF : 0x888888);
         }
         if (this.loading) {
             this.drawCentered(I18n.format((String)"voxlink.gui.loading", (Object[])new Object[0]), 118, 0xAAAAAA);
@@ -201,7 +214,7 @@ extends VoxLinkScreenBase {
             this.drawCentered(I18n.format((String)"voxlink.gui.no_rooms", (Object[])new Object[0]), 118, 0xAAAAAA);
         }
         String string6 = I18n.format((String)"voxlink.gui.page_fmt", (Object[])new Object[]{this.page, this.totalPages});
-        this.drawCentered(string6, this.height - 26, 0xAAAAAA);
+        this.drawCentered(string6, this.height - BAR_H + 6, 0xAAAAAA);
         for (Object e : this.buttonList) {
             ((GuiButton)e).drawButton(Minecraft.getMinecraft(), n, n2, f);
         }
@@ -215,7 +228,7 @@ extends VoxLinkScreenBase {
         return string;
     }
 
-    protected void mouseClicked(int n, int n2, int n3) {
+    protected void mouseClicked(int n, int n2, int n3) throws IOException {
         super.mouseClicked(n, n2, n3);
         if (n3 == 0 && this.hoverCard >= 0 && this.hoverCard < this.rooms.size()) {
             RoomEntry roomEntry = this.rooms.get(this.hoverCard);
@@ -229,14 +242,14 @@ extends VoxLinkScreenBase {
         }
         RoomManager roomManager = VoxLinkMod.getRoomManager();
         if (roomManager == null) {
-            VoxLinkChat.print((ITextComponent)new TextComponentString("[VoxLink] \u623f\u95f4\u7ba1\u7406\u5668\u672a\u5c31\u7eea"));
+            VoxLinkChat.print((ITextComponent)new TextComponentString("[PeerLink] \u623f\u95f4\u7ba1\u7406\u5668\u672a\u5c31\u7eea"));
             return;
         }
         roomManager.joinRoom(string, string2).whenComplete((roomInfo, throwable) -> {
             Minecraft minecraft = Minecraft.getMinecraft();
             minecraft.addScheduledTask(() -> {
                 if (throwable != null) {
-                    VoxLinkChat.print((ITextComponent)new TextComponentString("[VoxLink] \u52a0\u5165\u5931\u8d25: " + throwable.getMessage()));
+                    VoxLinkChat.print((ITextComponent)new TextComponentString("[PeerLink] \u52a0\u5165\u5931\u8d25: " + throwable.getMessage()));
                     return;
                 }
                 minecraft.displayGuiScreen((GuiScreen)new AttemptingJoinScreen(this, (RoomInfo)roomInfo));
@@ -271,7 +284,7 @@ extends VoxLinkScreenBase {
 
     @Override
     protected void addBackButton() {
-        this.addButton(1000, this.width / 2 - 100, this.height - 56, 200, 20, "\u8fd4\u56de");
+        this.addButton(1000, PAD, this.height - BAR_H, 80, 20, I18n.format((String)"voxlink.gui.back", (Object[])new Object[0]));
     }
 
     @Override

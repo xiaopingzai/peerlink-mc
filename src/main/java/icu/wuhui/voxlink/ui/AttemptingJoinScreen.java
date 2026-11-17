@@ -10,9 +10,12 @@
 package icu.wuhui.voxlink.ui;
 
 import icu.wuhui.voxlink.VoxLinkMod;
+import icu.wuhui.voxlink.modsync.ModSyncGuestService;
 import icu.wuhui.voxlink.network.ConnectionHelper;
 import icu.wuhui.voxlink.room.RoomInfo;
 import icu.wuhui.voxlink.ui.VoxLinkScreenBase;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -22,6 +25,9 @@ public class AttemptingJoinScreen
 extends VoxLinkScreenBase {
     private final GuiScreen parentScreen;
     private final RoomInfo roomInfo;
+    private final List<String> logLines = new ArrayList<String>();
+    private final List<Integer> logLevels = new ArrayList<Integer>();
+    private long logVersion = -1L;
     private int tickCounter = 0;
     private volatile boolean roomLost = false;
 
@@ -29,6 +35,8 @@ extends VoxLinkScreenBase {
         super("voxlink.attempting_join.title");
         this.parentScreen = guiScreen;
         this.roomInfo = roomInfo;
+        // 新一次加入会话：清空上一轮日志，门控提示随后在 initGui 播报。
+        UiLogBus.reset();
     }
 
     public void onRoomLost() {
@@ -38,6 +46,8 @@ extends VoxLinkScreenBase {
     @Override
     public void initGui() {
         super.initGui();
+        UiLogBus.attach();
+        ModSyncGuestService.pushPendingGateNote();
         this.addButton(1, this.width / 2 - 100, this.height - 60, 200, 20, I18n.format((String)"voxlink.gui.cancel", (Object[])new Object[0]));
     }
 
@@ -67,6 +77,51 @@ extends VoxLinkScreenBase {
             if (string != null && !string.isEmpty()) {
                 this.fontRenderer.drawString(string, (this.width - this.fontRenderer.getStringWidth(string)) / 2, n4 + 22, -5592406);
             }
+            String latest = UiLogBus.latestMessage();
+            if (latest != null && !latest.isEmpty()) {
+                this.fontRenderer.drawString(latest, (this.width - this.fontRenderer.getStringWidth(latest)) / 2, n4 + 34, VoxLinkColors.MUTED);
+            }
+        }
+        this.drawLogPanel();
+    }
+
+    private void refreshLogSnapshot() {
+        long ver = UiLogBus.version();
+        if (ver != this.logVersion) {
+            UiLogBus.snapshot(this.logLines, this.logLevels);
+            this.logVersion = ver;
+        }
+    }
+
+    private void drawLogPanel() {
+        this.refreshLogSnapshot();
+        if (this.logLines.isEmpty()) {
+            return;
+        }
+        int panelW = 120;
+        int panelX = this.width - panelW - 6;
+        int panelY = 40;
+        int lineH = 10;
+        int maxLines = Math.max(1, (this.height - panelY - 50) / lineH);
+        int shown = Math.min(this.logLines.size(), maxLines);
+        int panelH = shown * lineH + 6;
+        this.drawRect(panelX, panelY, panelX + panelW, panelY + panelH, 0x80000000);
+        int start = this.logLines.size() - shown;
+        for (int i = 0; i < shown; i++) {
+            String line = this.logLines.get(start + i);
+            int level = this.logLevels.size() > start + i ? this.logLevels.get(start + i) : 0;
+            this.fontRenderer.drawString(
+                this.fontRenderer.trimStringToWidth(line, panelW - 8),
+                panelX + 4, panelY + 3 + i * lineH, this.logColor(level));
+        }
+    }
+
+    private int logColor(int level) {
+        switch (level) {
+            case 1: return VoxLinkColors.SUCCESS;
+            case 2: return VoxLinkColors.WARNING;
+            case 3: return VoxLinkColors.ERROR;
+            default: return VoxLinkColors.MUTED;
         }
     }
 
