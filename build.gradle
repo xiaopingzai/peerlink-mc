@@ -50,3 +50,10 @@ jar {
         )
     }
 }
+
+// 发布包必须把 MCP 名重混淆回 SRG 名；否则生产运行期（只暴露 func_/field_ SRG 名）
+// 会在调用 Minecraft.getMinecraft() 等 MCP 方法时抛 NoSuchMethodError。
+reobf {
+    jar {}
+}
+jar.finalizedBy 'reobfJar'
