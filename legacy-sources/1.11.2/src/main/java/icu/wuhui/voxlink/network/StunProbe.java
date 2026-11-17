@@ -3,7 +3,6 @@
  */
 package icu.wuhui.voxlink.network;
 
-import icu.wuhui.voxlink.LogHelper;
 import icu.wuhui.voxlink.VoxLinkMod;
 import icu.wuhui.voxlink.network.StunCache;
 import java.net.DatagramPacket;
@@ -87,7 +86,7 @@ public class StunProbe {
         catch (Exception exception) {
             // empty catch block
         }
-        LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Parallel dual STUN: {} + {}, socket port={}", string, string2, datagramSocket.getLocalPort());
+        VoxLinkMod.LOGGER.info("[StunProbe] Parallel dual STUN: {} + {}, socket port={}", new Object[]{string, string2, datagramSocket.getLocalPort()});
         PublicMappedAddress[] publicMappedAddressArray = new PublicMappedAddress[2];
         try {
             ParsedStunUrl parsedStunUrl = StunProbe.parseStunUrl(string);
@@ -156,7 +155,7 @@ public class StunProbe {
             }
         }
         catch (Exception exception) {
-            LogHelper.logWarn(VoxLinkMod.LOGGER, "[StunProbe] Parallel dual STUN exception: {}", (Object)exception.getMessage());
+            VoxLinkMod.LOGGER.warn("[StunProbe] Parallel dual STUN exception: {}", (Object)exception.getMessage());
         }
         finally {
             try {
@@ -166,7 +165,7 @@ public class StunProbe {
             }
             catch (Exception exception) {}
         }
-        LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Dual STUN results: [0]={}, [1]={}", (Object)publicMappedAddressArray[0], (Object)publicMappedAddressArray[1]);
+        VoxLinkMod.LOGGER.info("[StunProbe] Dual STUN results: [0]={}, [1]={}", (Object)publicMappedAddressArray[0], (Object)publicMappedAddressArray[1]);
         return publicMappedAddressArray;
     }
 
@@ -184,7 +183,7 @@ public class StunProbe {
         catch (Exception exception) {
             // empty catch block
         }
-        LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Parallel 4 STUN: {}+{}+{}+{}, socket port={}", string, string2, string3, string4, datagramSocket.getLocalPort());
+        VoxLinkMod.LOGGER.info("[StunProbe] Parallel 4 STUN: {}+{}+{}+{}, socket port={}", new Object[]{string, string2, string3, string4, datagramSocket.getLocalPort()});
         try {
             ParsedStunUrl[] parsedStunUrlArray = new ParsedStunUrl[4];
             byte[][] byArrayArray = new byte[4][];
@@ -241,7 +240,7 @@ public class StunProbe {
             }
         }
         catch (Exception exception) {
-            LogHelper.logWarn(VoxLinkMod.LOGGER, "[StunProbe] Parallel 4 STUN exception: {}", (Object)exception.getMessage());
+            VoxLinkMod.LOGGER.warn("[StunProbe] Parallel 4 STUN exception: {}", (Object)exception.getMessage());
         }
         finally {
             try {
@@ -251,7 +250,7 @@ public class StunProbe {
             }
             catch (Exception exception) {}
         }
-        LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] 4 STUN results: [0]={}, [1]={}, [2]={}, [3]={}", publicMappedAddressArray[0], publicMappedAddressArray[1], publicMappedAddressArray[2], publicMappedAddressArray[3]);
+        VoxLinkMod.LOGGER.info("[StunProbe] 4 STUN results: [0]={}, [1]={}, [2]={}, [3]={}", new Object[]{publicMappedAddressArray[0], publicMappedAddressArray[1], publicMappedAddressArray[2], publicMappedAddressArray[3]});
         return publicMappedAddressArray;
     }
 
@@ -272,7 +271,7 @@ public class StunProbe {
             int n3 = list.size();
             ParsedStunUrl[] parsedStunUrlArray = new ParsedStunUrl[n3];
             byte[][] byArrayArray = new byte[n3][];
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Parallel race {} STUN take {} , socket port={}", n3, n, datagramSocket.getLocalPort());
+            VoxLinkMod.LOGGER.info("[StunProbe] Parallel race {} STUN take {} , socket port={}", new Object[]{n3, n, datagramSocket.getLocalPort()});
             int n4 = 0;
             try {
                 InetAddress[] inetAddressArray = new InetAddress[n3];
@@ -316,13 +315,13 @@ public class StunProbe {
                         if (mappedAddress == null) continue block16;
                         blArray[i] = true;
                         publicMappedAddressArray[n4] = new PublicMappedAddress(mappedAddress.ip, mappedAddress.port);
-                        LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Race #{}: {} -> {}:{}", ++n4, list.get(i), mappedAddress.ip, mappedAddress.port);
+                        VoxLinkMod.LOGGER.info("[StunProbe] Race #{}: {} -> {}:{}", new Object[]{++n4, list.get(i), mappedAddress.ip, mappedAddress.port});
                         continue block16;
                     }
                 }
             }
             catch (Exception exception) {
-                LogHelper.logWarn(VoxLinkMod.LOGGER, "[StunProbe] Parallel race exception: {}", (Object)exception.getMessage());
+                VoxLinkMod.LOGGER.warn("[StunProbe] Parallel race exception: {}", (Object)exception.getMessage());
             }
             finally {
                 try {
@@ -332,7 +331,7 @@ public class StunProbe {
                 }
                 catch (Exception exception) {}
             }
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Race done: got {}/{}", (Object)n4, (Object)n);
+            VoxLinkMod.LOGGER.info("[StunProbe] Race done: got {}/{}", (Object)n4, (Object)n);
             return publicMappedAddressArray;
         }
         return publicMappedAddressArray;
@@ -496,7 +495,7 @@ public class StunProbe {
             }
         }
         CountDownLatch countDownLatch = new CountDownLatch(2);
-        for (CompletableFuture completableFuture : arrayList2) {
+        for (CompletableFuture<StunServerResult> completableFuture : arrayList2) {
             completableFuture.whenComplete((stunServerResult, throwable) -> {
                 if (stunServerResult != null && stunServerResult.reachable) {
                     countDownLatch.countDown();
@@ -510,7 +509,7 @@ public class StunProbe {
             Thread.currentThread().interrupt();
         }
         ArrayList<StunServerResult> arrayList = new ArrayList<StunServerResult>();
-        for (CompletableFuture completableFuture : arrayList2) {
+        for (CompletableFuture<StunServerResult> completableFuture : arrayList2) {
             try {
                 arrayList.add(completableFuture.getNow(new StunServerResult("", "", 0, false, -1L, null, 0)));
             }
@@ -518,7 +517,7 @@ public class StunProbe {
         }
         NatType natType = StunProbe.detectNatType(arrayList);
         long l = arrayList.stream().filter(stunServerResult -> stunServerResult.reachable).count();
-        LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] NAT={}, reachable={}/{}", natType.key, l, arrayList.size());
+        VoxLinkMod.LOGGER.info("[StunProbe] NAT={}, reachable={}/{}", new Object[]{natType.key, l, arrayList.size()});
         return new ProbeResult(natType, arrayList);
     }
 
@@ -531,7 +530,7 @@ public class StunProbe {
      */
     private static StunServerResult probeSingleServer(String string) {
         StunServerResult stunServerResult;
-        Object object;
+        byte[] request;
         ParsedStunUrl parsedStunUrl = StunProbe.parseStunUrl(string);
         if (parsedStunUrl == null) {
             return new StunServerResult(string, false, -1L, null);
@@ -541,9 +540,9 @@ public class StunProbe {
             InetAddress inetAddress = InetAddress.getByName(parsedStunUrl.host);
             datagramSocket = new DatagramSocket();
             datagramSocket.setSoTimeout(8000);
-            object = StunProbe.createBindingRequest();
+            request = StunProbe.createBindingRequest();
             long l = System.nanoTime();
-            DatagramPacket datagramPacket = new DatagramPacket((byte[])object, ((byte[])object).length, inetAddress, parsedStunUrl.port);
+            DatagramPacket datagramPacket = new DatagramPacket(request, request.length, inetAddress, parsedStunUrl.port);
             datagramSocket.send(datagramPacket);
             byte[] byArray = new byte[576];
             DatagramPacket datagramPacket2 = new DatagramPacket(byArray, byArray.length);
@@ -551,20 +550,19 @@ public class StunProbe {
             long l2 = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - l);
             byte[] byArray2 = new byte[datagramPacket2.getLength()];
             System.arraycopy(datagramPacket2.getData(), 0, byArray2, 0, datagramPacket2.getLength());
-            MappedAddress mappedAddress = StunProbe.parseBindingResponse(byArray2, object);
+            MappedAddress mappedAddress = StunProbe.parseBindingResponse(byArray2, request);
             if (mappedAddress != null) {
                 StunServerResult stunServerResult2;
-                LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunProbe] {} reachable, latency={}ms, mapped={}:{}", string, l2, mappedAddress.ip, mappedAddress.port);
+                VoxLinkMod.LOGGER.debug("[StunProbe] {} reachable, latency={}ms, mapped={}:{}", new Object[]{string, l2, mappedAddress.ip, mappedAddress.port});
                 StunServerResult stunServerResult3 = stunServerResult2 = new StunServerResult(string, parsedStunUrl.host, parsedStunUrl.port, true, l2, mappedAddress.ip, mappedAddress.port);
                 return stunServerResult3;
             }
-            LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunProbe] {} has response but no mapped address", (Object)string);
+            VoxLinkMod.LOGGER.debug("[StunProbe] {} has response but no mapped address", (Object)string);
             stunServerResult = new StunServerResult(string, parsedStunUrl.host, parsedStunUrl.port, true, l2, null, 0);
         }
         catch (Exception exception) {
-            LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunProbe] {} unreachable: {}", (Object)string, (Object)exception.getMessage());
-            Object object2 = object = (Object)new StunServerResult(string, parsedStunUrl.host, parsedStunUrl.port, false, -1L, null, 0);
-            return object2;
+            VoxLinkMod.LOGGER.debug("[StunProbe] {} unreachable: {}", (Object)string, (Object)exception.getMessage());
+            return new StunServerResult(string, parsedStunUrl.host, parsedStunUrl.port, false, -1L, null, 0);
         }
         finally {
             if (datagramSocket != null) {
@@ -583,7 +581,7 @@ public class StunProbe {
             return probeResult != null ? probeResult.natType : null;
         }
         catch (Exception exception) {
-            LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunProbe] NAT type probe failed: {}", (Object)exception.getMessage());
+            VoxLinkMod.LOGGER.debug("[StunProbe] NAT type probe failed: {}", (Object)exception.getMessage());
             return null;
         }
     }
@@ -631,7 +629,7 @@ public class StunProbe {
             if (byArray3.length >= 20 && StunProbe.matchTransaction(byArray3, byArray)) {
                 int n2 = (byArray3[0] & 0xFF) << 8 | byArray3[1] & 0xFF;
                 if (n2 == 273) {
-                    LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] STUN error response, RFC5780 not supported");
+                    VoxLinkMod.LOGGER.info("[StunProbe] STUN error response, RFC5780 not supported");
                     return null;
                 }
                 return n2 != 257 ? null : (InetSocketAddress)datagramPacket.getSocketAddress();
@@ -639,7 +637,7 @@ public class StunProbe {
             return null;
         }
         catch (Exception exception) {
-            LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunProbe] CHANGE-REQUEST failed: {}", (Object)exception.getMessage());
+            VoxLinkMod.LOGGER.debug("[StunProbe] CHANGE-REQUEST failed: {}", (Object)exception.getMessage());
             return null;
         }
     }
@@ -651,38 +649,38 @@ public class StunProbe {
     private static NatType detectNatType(List<StunServerResult> list) {
         List<StunServerResult> list2 = list.stream().filter(stunServerResult -> stunServerResult.reachable && stunServerResult.mappedIp != null).collect(Collectors.toList());
         if (list2.size() < 2) {
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Not enough reachable servers ({}), cannot determine NAT type", (Object)list2.size());
+            VoxLinkMod.LOGGER.info("[StunProbe] Not enough reachable servers ({}), cannot determine NAT type", (Object)list2.size());
             return NatType.UNKNOWN;
         }
         DatagramSocket datagramSocket = null;
         try {
             byte[] byArray;
-            Object object;
+            DatagramPacket packet;
             int n;
-            Object object2;
+            InetAddress addr1;
+            NatType rfcNat;
             StunServerResult stunServerResult22;
             DatagramPacket datagramPacket = null;
             int n2 = 0;
             datagramSocket = new DatagramSocket();
             datagramSocket.setSoTimeout(8000);
             int n3 = 0;
-            for (StunServerResult stunServerResult22 : list2) {
+            for (StunServerResult result : list2) {
                 if (n3 >= 3) break;
                 ++n3;
-                object2 = StunProbe.detectNatTypeWithRfc5780(datagramSocket, stunServerResult22.host, stunServerResult22.port, stunServerResult22.port + 1);
-                if (object2 == null) continue;
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] RFC5780 determined: {} -> {}", (Object)stunServerResult22.url, (Object)object2.key);
-                Object object3 = object2;
-                return object3;
+                rfcNat = StunProbe.detectNatTypeWithRfc5780(datagramSocket, result.host, result.port, result.port + 1);
+                if (rfcNat == null) continue;
+                VoxLinkMod.LOGGER.info("[StunProbe] RFC5780 determined: {} -> {}", (Object)result.url, (Object)rfcNat.key);
+                return rfcNat;
             }
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] RFC5780 all failed ({} tried), fallback to two-server delta method", (Object)n3);
+            VoxLinkMod.LOGGER.info("[StunProbe] RFC5780 all failed ({} tried), fallback to two-server delta method", (Object)n3);
             StunServerResult stunServerResult3 = (StunServerResult)list2.get(0);
             stunServerResult22 = (StunServerResult)list2.get(1);
-            object2 = InetAddress.getByName(stunServerResult3.host);
+            addr1 = InetAddress.getByName(stunServerResult3.host);
             InetAddress inetAddress = InetAddress.getByName(stunServerResult22.host);
             byte[] byArray2 = StunProbe.createBindingRequest();
             byte[] byArray3 = StunProbe.createBindingRequest();
-            datagramSocket.send(new DatagramPacket(byArray2, byArray2.length, (InetAddress)object2, stunServerResult3.port));
+            datagramSocket.send(new DatagramPacket(byArray2, byArray2.length, addr1, stunServerResult3.port));
             datagramSocket.send(new DatagramPacket(byArray3, byArray3.length, inetAddress, stunServerResult22.port));
             MappedAddress mappedAddress = null;
             MappedAddress mappedAddress2 = null;
@@ -690,15 +688,15 @@ public class StunProbe {
             long l = System.currentTimeMillis() + 8000L;
             for (n = 0; n < 2 && System.currentTimeMillis() < l; ++n) {
                 MappedAddress mappedAddress3;
-                object = new DatagramPacket(byArray4, byArray4.length);
+                packet = new DatagramPacket(byArray4, byArray4.length);
                 try {
-                    datagramSocket.receive((DatagramPacket)object);
+                    datagramSocket.receive(packet);
                 }
                 catch (SocketTimeoutException socketTimeoutException) {
                     break;
                 }
-                byArray = new byte[((DatagramPacket)object).getLength()];
-                System.arraycopy(((DatagramPacket)object).getData(), 0, byArray, 0, ((DatagramPacket)object).getLength());
+                byArray = new byte[packet.getLength()];
+                System.arraycopy(packet.getData(), 0, byArray, 0, packet.getLength());
                 if (mappedAddress == null) {
                     mappedAddress3 = StunProbe.parseBindingResponse(byArray, byArray2);
                     if (mappedAddress3 != null) {
@@ -724,16 +722,16 @@ public class StunProbe {
                 return natType;
             }
             if (mappedAddress.ip.equals(mappedAddress2.ip) && mappedAddress.port == mappedAddress2.port) {
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Non-symmetric NAT, mapped addresses same ({}:{})", (Object)mappedAddress.ip, (Object)mappedAddress.port);
+                VoxLinkMod.LOGGER.info("[StunProbe] Non-symmetric NAT, mapped addresses same ({}:{})", (Object)mappedAddress.ip, (Object)mappedAddress.port);
                 NatType natType = NatType.PORT_RESTRICTED_CONE;
                 return natType;
             }
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Mapped differs across servers ({}:{} vs {}:{}), confirm symmetric via same-server alt-port", mappedAddress.ip, mappedAddress.port, mappedAddress2.ip, mappedAddress2.port);
+            VoxLinkMod.LOGGER.info("[StunProbe] Mapped differs across servers ({}:{} vs {}:{}), confirm symmetric via same-server alt-port", new Object[]{mappedAddress.ip, mappedAddress.port, mappedAddress2.ip, mappedAddress2.port});
             n = 0;
             for (int i = 1; i <= 3 && n == 0 && (n2 = stunServerResult3.port + i) <= 65535; ++i) {
                 try {
-                    object = StunProbe.createBindingRequest();
-                    datagramSocket.send(new DatagramPacket((byte[])object, ((Object)object).length, (InetAddress)object2, n2));
+                    byte[] altRequest = StunProbe.createBindingRequest();
+                    datagramSocket.send(new DatagramPacket(altRequest, altRequest.length, addr1, n2));
                     datagramPacket = new DatagramPacket(byArray4, byArray4.length);
                     try {
                         datagramSocket.receive(datagramPacket);
@@ -743,9 +741,9 @@ public class StunProbe {
                     }
                     byArray = new byte[datagramPacket.getLength()];
                     System.arraycopy(datagramPacket.getData(), 0, byArray, 0, datagramPacket.getLength());
-                    MappedAddress mappedAddress4 = StunProbe.parseBindingResponse(byArray, (byte[])object);
+                    MappedAddress mappedAddress4 = StunProbe.parseBindingResponse(byArray, altRequest);
                     if (mappedAddress4 == null) continue;
-                    LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Same-server alt-port {}:{} mapped {}:{}", stunServerResult3.host, n2, mappedAddress4.ip, mappedAddress4.port);
+                    VoxLinkMod.LOGGER.info("[StunProbe] Same-server alt-port {}:{} mapped {}:{}", new Object[]{stunServerResult3.host, n2, mappedAddress4.ip, mappedAddress4.port});
                     if (mappedAddress4.port == mappedAddress.port) continue;
                     n = 1;
                     continue;
@@ -755,11 +753,11 @@ public class StunProbe {
                 }
             }
             if (n == 0) {
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Same-server alt-port not confirmed, treat as PortRestricted (per-destination mapping stable)");
+                VoxLinkMod.LOGGER.info("[StunProbe] Same-server alt-port not confirmed, treat as PortRestricted (per-destination mapping stable)");
                 NatType natType = NatType.PORT_RESTRICTED_CONE;
                 return natType;
             }
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Confirmed symmetric NAT (same-server alt-port differs), determine direction");
+            VoxLinkMod.LOGGER.info("[StunProbe] Confirmed symmetric NAT (same-server alt-port differs), determine direction");
             NatType natType = StunProbe.detectEasySymmetric(datagramSocket, mappedAddress.port, list2);
             if (natType != null) {
                 return natType;
@@ -767,25 +765,25 @@ public class StunProbe {
             int n4 = mappedAddress2.port - mappedAddress.port;
             int n5 = Math.abs(n4);
             if (!mappedAddress.ip.equals(mappedAddress2.ip)) {
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] EasySym fallback: public IP differs ({} vs {}), determined HardSym", (Object)mappedAddress.ip, (Object)mappedAddress2.ip);
+                VoxLinkMod.LOGGER.info("[StunProbe] EasySym fallback: public IP differs ({} vs {}), determined HardSym", (Object)mappedAddress.ip, (Object)mappedAddress2.ip);
                 return NatType.SYMMETRIC;
             }
             int n6 = mappedAddress.port > 0 && mappedAddress2.port > 0 ? 100 : 200;
             int n7 = n6;
             if (n5 > 0 && n5 < n6) {
                 NatType natType2 = n4 > 0 ? NatType.SYMMETRIC_EASY_INC : NatType.SYMMETRIC_EASY_DEC;
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] EasySym fallback (3-sample failed): {}->{} diff={}, threshold={}, determined {}", mappedAddress.port, mappedAddress2.port, n4, n6, natType2.key);
-                LogHelper.logDebug(VoxLinkMod.LOGGER, "Port delta {} -> {}", (Object)n4, (Object)natType2.key);
+                VoxLinkMod.LOGGER.info("[StunProbe] EasySym fallback (3-sample failed): {}->{} diff={}, threshold={}, determined {}", new Object[]{mappedAddress.port, mappedAddress2.port, n4, n6, natType2.key});
+                VoxLinkMod.LOGGER.debug("Port delta {} -> {}", (Object)n4, (Object)natType2.key);
                 NatType natType3 = natType2;
                 return natType3;
             }
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] EasySym fallback: {}->{} diff={}>={}, threshold={}, determined HardSym", mappedAddress.port, mappedAddress2.port, n5, n6, n6);
-            LogHelper.logDebug(VoxLinkMod.LOGGER, "Port delta {} -> {}", (Object)n4, (Object)NatType.SYMMETRIC.key);
+            VoxLinkMod.LOGGER.info("[StunProbe] EasySym fallback: {}->{} diff={}>={}, threshold={}, determined HardSym", new Object[]{mappedAddress.port, mappedAddress2.port, n5, n6, n6});
+            VoxLinkMod.LOGGER.debug("Port delta {} -> {}", (Object)n4, (Object)NatType.SYMMETRIC.key);
             NatType natType4 = NatType.SYMMETRIC;
             return natType4;
         }
         catch (Exception exception) {
-            LogHelper.logWarn(VoxLinkMod.LOGGER, "[StunProbe] NAT type detection failed: {}", (Object)exception.getMessage());
+            VoxLinkMod.LOGGER.warn("[StunProbe] NAT type detection failed: {}", (Object)exception.getMessage());
             return NatType.UNKNOWN;
         }
     }
@@ -796,11 +794,11 @@ public class StunProbe {
             stunServerResult = list.get(2);
         } else {
             if (list.size() < 1) {
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] EasySym detection: no STUN available, skip 3rd sample");
+                VoxLinkMod.LOGGER.info("[StunProbe] EasySym detection: no STUN available, skip 3rd sample");
                 return null;
             }
             stunServerResult = list.get(0);
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] EasySym detection: only {} reachable STUN, reuse {}:{} for 3rd sample", list.size(), stunServerResult.host, stunServerResult.port);
+            VoxLinkMod.LOGGER.info("[StunProbe] EasySym detection: only {} reachable STUN, reuse {}:{} for 3rd sample", new Object[]{list.size(), stunServerResult.host, stunServerResult.port});
         }
         try {
             datagramSocket.setSoTimeout(1500);
@@ -817,28 +815,28 @@ public class StunProbe {
                 int n2 = mappedAddress.port - n;
                 int n3 = Math.abs(n2);
                 int n4 = n > 0 && mappedAddress.port > 0 ? 100 : 200;
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] EasySym detection (same socket 3rd server): basePort={}, extraPort={}, diff={}, threshold={}", n, mappedAddress.port, n2, n4);
+                VoxLinkMod.LOGGER.info("[StunProbe] EasySym detection (same socket 3rd server): basePort={}, extraPort={}, diff={}, threshold={}", new Object[]{n, mappedAddress.port, n2, n4});
                 if (n2 > 0 && n2 < n4) {
-                    LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] EasySym increment (port+{}, threshold={})", (Object)n2, (Object)n4);
-                    LogHelper.logDebug(VoxLinkMod.LOGGER, "Port delta {} -> {}", (Object)n2, (Object)NatType.SYMMETRIC_EASY_INC.key);
+                    VoxLinkMod.LOGGER.info("[StunProbe] EasySym increment (port+{}, threshold={})", (Object)n2, (Object)n4);
+                    VoxLinkMod.LOGGER.debug("Port delta {} -> {}", (Object)n2, (Object)NatType.SYMMETRIC_EASY_INC.key);
                     return NatType.SYMMETRIC_EASY_INC;
                 }
                 if (n2 < 0 && n2 > -n4) {
-                    LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] EasySym decrement (port{}, threshold={})", (Object)n2, (Object)n4);
-                    LogHelper.logDebug(VoxLinkMod.LOGGER, "Port delta {} -> {}", (Object)n2, (Object)NatType.SYMMETRIC_EASY_DEC.key);
+                    VoxLinkMod.LOGGER.info("[StunProbe] EasySym decrement (port{}, threshold={})", (Object)n2, (Object)n4);
+                    VoxLinkMod.LOGGER.debug("Port delta {} -> {}", (Object)n2, (Object)NatType.SYMMETRIC_EASY_DEC.key);
                     return NatType.SYMMETRIC_EASY_DEC;
                 }
                 if (n3 >= n4) {
-                    LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] EasySym detection: diff={}>={}, determined HardSym", (Object)n3, (Object)n4);
-                    LogHelper.logDebug(VoxLinkMod.LOGGER, "Port delta {} -> {}", (Object)n2, (Object)NatType.SYMMETRIC.key);
+                    VoxLinkMod.LOGGER.info("[StunProbe] EasySym detection: diff={}>={}, determined HardSym", (Object)n3, (Object)n4);
+                    VoxLinkMod.LOGGER.debug("Port delta {} -> {}", (Object)n2, (Object)NatType.SYMMETRIC.key);
                     return NatType.SYMMETRIC;
                 }
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] EasySym detection: diff=0 (NAT reuses port), still EasySym");
+                VoxLinkMod.LOGGER.info("[StunProbe] EasySym detection: diff=0 (NAT reuses port), still EasySym");
                 return NatType.SYMMETRIC_EASY_INC;
             }
         }
         catch (Exception exception) {
-            LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunProbe] EasySym detection failed: {}", (Object)exception.getMessage());
+            VoxLinkMod.LOGGER.debug("[StunProbe] EasySym detection failed: {}", (Object)exception.getMessage());
         }
         return null;
     }
@@ -878,7 +876,7 @@ public class StunProbe {
             if (n2 > n3) {
                 n2 = n3;
             }
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] Binding response: dataLen={}, msgLen={}", (Object)byArray.length, (Object)n2);
+            VoxLinkMod.LOGGER.info("[StunProbe] Binding response: dataLen={}, msgLen={}", (Object)byArray.length, (Object)n2);
             int n4 = 20;
             while (n4 + 4 <= byArray.length && n4 - 20 < n2) {
                 int n5 = (byArray[n4] & 0xFF) << 8 | byArray[n4 + 1] & 0xFF;
@@ -894,13 +892,13 @@ public class StunProbe {
                     return StunProbe.parseXorMappedAddress(byArray, n4, n6, byArray2);
                 }
                 if (n5 == 32808) {
-                    LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunProbe] Skip FINGERPRINT");
+                    VoxLinkMod.LOGGER.debug("[StunProbe] Skip FINGERPRINT");
                 } else if (n5 == 32802) {
-                    LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunProbe] Skip SOFTWARE(len={})", (Object)n6);
+                    VoxLinkMod.LOGGER.debug("[StunProbe] Skip SOFTWARE(len={})", (Object)n6);
                 } else if (n5 == 32809) {
-                    LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunProbe] Skip MESSAGE-INTEGRITY(len={})", (Object)n6);
+                    VoxLinkMod.LOGGER.debug("[StunProbe] Skip MESSAGE-INTEGRITY(len={})", (Object)n6);
                 } else {
-                    LogHelper.logWarn(VoxLinkMod.LOGGER, "[StunProbe] Unknown attribute: 0x{}, len={}", (Object)Integer.toHexString(n5), (Object)n6);
+                    VoxLinkMod.LOGGER.warn("[StunProbe] Unknown attribute: 0x{}, len={}", (Object)Integer.toHexString(n5), (Object)n6);
                 }
                 n4 += 4 + n6;
                 if (n6 % 4 == 0) continue;
@@ -986,7 +984,7 @@ public class StunProbe {
                 String string4 = string2.substring(0, n3);
                 String string5 = string2.substring(n3 + 1);
                 if (string4.contains(":")) {
-                    LogHelper.logWarn(VoxLinkMod.LOGGER, "[StunProbe] IPv6 without brackets, ambiguous, ignore: {}", (Object)string);
+                    VoxLinkMod.LOGGER.warn("[StunProbe] IPv6 without brackets, ambiguous, ignore: {}", (Object)string);
                     return null;
                 }
                 try {
@@ -1062,16 +1060,16 @@ public class StunProbe {
                         string = parsedStunUrlArray[i].host;
                         n4 = parsedStunUrlArray[i].port;
                         arrayList.add(mappedAddress.port);
-                        LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunProbe] P-PRE race selected STUN: {}:{}, first port={}", string, n4, mappedAddress.port);
+                        VoxLinkMod.LOGGER.info("[StunProbe] P-PRE race selected STUN: {}:{}, first port={}", new Object[]{string, n4, mappedAddress.port});
                         continue block19;
                     }
                 }
             }
             catch (Exception exception) {
-                LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunProbe] P-PRE race exception: {}", (Object)exception.getMessage());
+                VoxLinkMod.LOGGER.debug("[StunProbe] P-PRE race exception: {}", (Object)exception.getMessage());
             }
             if (string == null) {
-                LogHelper.logWarn(VoxLinkMod.LOGGER, "[StunProbe] P-PRE race no response, sampling failed");
+                VoxLinkMod.LOGGER.warn("[StunProbe] P-PRE race no response, sampling failed");
                 try {
                     if (n3 >= 0) {
                         datagramSocket.setSoTimeout(n3);
@@ -1129,7 +1127,7 @@ public class StunProbe {
                     }
                 }
                 catch (Exception exception) {
-                    LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunProbe] P-PRE sample #{}/{} failed: {}", i + 1, n, exception.getMessage());
+                    VoxLinkMod.LOGGER.debug("[StunProbe] P-PRE sample #{}/{} failed: {}", new Object[]{i + 1, n, exception.getMessage()});
                 }
             }
             try {

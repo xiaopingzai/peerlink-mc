@@ -14,7 +14,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import icu.wuhui.voxlink.GsonFix;
-import icu.wuhui.voxlink.LogHelper;
 import icu.wuhui.voxlink.VoxLinkMod;
 import icu.wuhui.voxlink.config.VoxLinkConfig;
 import icu.wuhui.voxlink.network.Http8;
@@ -91,16 +90,20 @@ public class SignalingClient {
         hashMap.put("poll_topology", "/topology/poll");
         hashMap.put("relay_register", "/relay/register");
         hashMap.put("relay_candidates", "/relay/candidates");
+        hashMap.put("publish_mod_manifest", "/room/mods/publish");
+        hashMap.put("get_room_mods", "/room/mods");
+        hashMap.put("request_room_mods", "/room/mods/request");
+        hashMap.put("answer_room_mods", "/room/mods/answer");
         return Collections.unmodifiableMap(hashMap);
     }
 
     private String getRpcBaseUrl() {
         String string = this.config.getServerUrl();
         if (string != null && !string.trim().isEmpty()) {
-            LogHelper.logDebug(VoxLinkMod.LOGGER, "[SignalingClient] serverUrl config: {}", (Object)string);
+            VoxLinkMod.LOGGER.debug("[SignalingClient] serverUrl config: {}", (Object)string);
             return string.contains("route=") ? string : string.replaceAll("/+$", "") + "/?route=";
         }
-        LogHelper.logError(VoxLinkMod.LOGGER, "[SignalingClient] serverUrl is empty");
+        VoxLinkMod.LOGGER.error("[SignalingClient] serverUrl is empty");
         return "";
     }
 
@@ -134,7 +137,7 @@ public class SignalingClient {
         this.config = voxLinkConfig;
         String string = voxLinkConfig.getServerUrl();
         if (string != null && string.startsWith("http://")) {
-            LogHelper.logWarn(VoxLinkMod.LOGGER, "[SignalingClient] Using HTTP not HTTPS: {}, recommend switching to HTTPS", (Object)string);
+            VoxLinkMod.LOGGER.warn("[SignalingClient] Using HTTP not HTTPS: {}, recommend switching to HTTPS", (Object)string);
         }
         this.executor = Executors.newFixedThreadPool(2, runnable -> {
             Thread thread = new Thread(runnable, "VoxLink-Signaling");
@@ -146,7 +149,7 @@ public class SignalingClient {
             thread.setDaemon(true);
             return thread;
         });
-        LogHelper.logInfo(VoxLinkMod.LOGGER, "[SignalingClient] HTTP transport ready, connectTimeout={}ms", (Object)voxLinkConfig.getConnectionTimeout());
+        VoxLinkMod.LOGGER.info("[SignalingClient] HTTP transport ready, connectTimeout={}ms", (Object)voxLinkConfig.getConnectionTimeout());
     }
 
     public CompletableFuture<ApiResponse> createRoom(String string, String string2, int n, int n2, String string3, int n3, boolean bl, String string4, String string5, int n4, int n5, String string6, String string7) {
@@ -176,7 +179,7 @@ public class SignalingClient {
         if (string6 != null && !string6.isEmpty()) {
             jsonObject.addProperty("hostIpv6", string6);
         }
-        jsonObject.addProperty("loader", "fabric");
+        jsonObject.addProperty("loader", "forge");
         jsonObject.addProperty("clientProtocolVersion", (Number)7);
         JsonArray jsonArray = new JsonArray();
         for (String string8 : ProtocolNegotiator.CURRENT_CAPABILITIES) {
@@ -190,14 +193,14 @@ public class SignalingClient {
     private CompletableFuture<ApiResponse> postCreateRoom(String string, JsonObject jsonObject) {
         return this.postOnce(string, jsonObject, 8000L).thenCompose(apiResponse -> {
             if (!apiResponse.success && TRANSIENT_ERRORS.contains(apiResponse.error)) {
-                LogHelper.logWarn(VoxLinkMod.LOGGER, "POST {} failed {}, retry once after 2s (create room)", (Object)string, (Object)apiResponse.error);
+                VoxLinkMod.LOGGER.warn("POST {} failed {}, retry once after 2s (create room)", (Object)string, (Object)apiResponse.error);
                 CompletableFuture<ApiResponse> completableFuture = new CompletableFuture<ApiResponse>();
                 try {
-                    this.scheduler.schedule(() -> this.postOnce(string, jsonObject, 8000L).whenComplete((apiResponse, throwable) -> {
+                    this.scheduler.schedule(() -> this.postOnce(string, jsonObject, 8000L).whenComplete((retryResponse, throwable) -> {
                         if (throwable != null) {
                             completableFuture.completeExceptionally((Throwable)throwable);
                         } else {
-                            completableFuture.complete((ApiResponse)apiResponse);
+                            completableFuture.complete((ApiResponse)retryResponse);
                         }
                     }), 2L, TimeUnit.SECONDS);
                 }
@@ -264,6 +267,45 @@ public class SignalingClient {
         return this.postNoRetry(this.buildPath("leave_room"), jsonObject);
     }
 
+    /** ModSync：房主创建房间后发布必装 Mod 清单（需 hostToken，服务端校验）。 */
+    public CompletableFuture<ApiResponse> publishModManifest(String string, String string2, JsonObject jsonObject) {
+        JsonObject jsonObject2 = new JsonObject();
+        jsonObject2.addProperty("code", string != null ? string : "");
+        jsonObject2.addProperty("token", string2 != null ? string2 : "");
+        jsonObject2.add("manifest", jsonObject != null ? jsonObject : new JsonObject());
+        jsonObject2.addProperty("action", "publish_mod_manifest");
+        return this.postNoRetry(this.buildPath("publish_mod_manifest"), jsonObject2);
+    }
+
+    /** ModSync：房客打洞前按房间号拉取必装清单（supported/ready/mods）。 */
+    public CompletableFuture<ApiResponse> getRoomMods(String string) {
+        JsonObject jsonObject2 = new JsonObject();
+        jsonObject2.addProperty("code", string != null ? string.toUpperCase() : "");
+        jsonObject2.addProperty("action", "get_room_mods");
+        return this.postNoRetry(this.buildPath("get_room_mods"), jsonObject2);
+    }
+
+    /** ModSync v2：房客按需请求清单（scope=required|all）；服务器缓存未命中时经信号向房主取。 */
+    public CompletableFuture<ApiResponse> requestRoomMods(String string, String string2) {
+        JsonObject jsonObject2 = new JsonObject();
+        jsonObject2.addProperty("code", string != null ? string.toUpperCase() : "");
+        jsonObject2.addProperty("scope", string2 != null && !string2.isEmpty() ? string2 : "required");
+        jsonObject2.addProperty("action", "request_room_mods");
+        return this.postNoRetry(this.buildPath("request_room_mods"), jsonObject2);
+    }
+
+    /** ModSync v2：房主应答按需请求（requestId 关联），服务器落缓存并唤醒房客长轮询。 */
+    public CompletableFuture<ApiResponse> answerRoomMods(String string, String string2, String string3, String string4, JsonObject jsonObject) {
+        JsonObject jsonObject2 = new JsonObject();
+        jsonObject2.addProperty("code", string != null ? string.toUpperCase() : "");
+        jsonObject2.addProperty("token", string2 != null ? string2 : "");
+        jsonObject2.addProperty("requestId", string3 != null ? string3 : "");
+        jsonObject2.addProperty("scope", string4 != null && !string4.isEmpty() ? string4 : "required");
+        jsonObject2.add("manifest", jsonObject != null ? jsonObject : new JsonObject());
+        jsonObject2.addProperty("action", "answer_room_mods");
+        return this.postNoRetry(this.buildPath("answer_room_mods"), jsonObject2);
+    }
+
     public CompletableFuture<ApiResponse> listRooms(int n, int n2, String string, String string2) {
         String string3 = "page=" + n + "&size=" + n2 + "&clientType=mod";
         if (string != null && !string.isEmpty()) {
@@ -299,11 +341,11 @@ public class SignalingClient {
             if (!apiResponse.success && TRANSIENT_ERRORS.contains(apiResponse.error)) {
                 CompletableFuture<ApiResponse> completableFuture = new CompletableFuture<ApiResponse>();
                 try {
-                    this.scheduler.schedule(() -> this.postOnce(this.buildPath("heartbeat"), jsonObject2, 8000L).whenComplete((apiResponse, throwable) -> {
+                    this.scheduler.schedule(() -> this.postOnce(this.buildPath("heartbeat"), jsonObject2, 8000L).whenComplete((retryResponse, throwable) -> {
                         if (throwable != null) {
                             completableFuture.completeExceptionally((Throwable)throwable);
                         } else {
-                            completableFuture.complete((ApiResponse)apiResponse);
+                            completableFuture.complete((ApiResponse)retryResponse);
                         }
                     }), 2L, TimeUnit.SECONDS);
                 }
@@ -399,14 +441,14 @@ public class SignalingClient {
         return this.postOnce(string, jsonObject).thenCompose(apiResponse -> {
             if (!apiResponse.success && TRANSIENT_ERRORS.contains(apiResponse.error) && n > 0) {
                 long l = apiResponse.retryAfter > 0 ? (long)apiResponse.retryAfter : 2L;
-                LogHelper.logWarn(VoxLinkMod.LOGGER, "POST {} failed {}, retry after {}s ({} left)", string, apiResponse.error, l, n);
+                VoxLinkMod.LOGGER.warn("POST {} failed {}, retry after {}s ({} left)", new Object[]{string, apiResponse.error, l, n});
                 CompletableFuture<ApiResponse> completableFuture = new CompletableFuture<ApiResponse>();
                 try {
-                    this.scheduler.schedule(() -> this.postWithRetry(string, jsonObject, n - 1).whenComplete((apiResponse, throwable) -> {
+                    this.scheduler.schedule(() -> this.postWithRetry(string, jsonObject, n - 1).whenComplete((retryResponse, throwable) -> {
                         if (throwable != null) {
                             completableFuture.completeExceptionally((Throwable)throwable);
                         } else {
-                            completableFuture.complete((ApiResponse)apiResponse);
+                            completableFuture.complete((ApiResponse)retryResponse);
                         }
                     }), l, TimeUnit.SECONDS);
                 }
@@ -423,14 +465,14 @@ public class SignalingClient {
         return this.getOnce(string).thenCompose(apiResponse -> {
             if (!apiResponse.success && TRANSIENT_ERRORS.contains(apiResponse.error) && n > 0) {
                 long l = apiResponse.retryAfter > 0 ? (long)apiResponse.retryAfter : 2L;
-                LogHelper.logWarn(VoxLinkMod.LOGGER, "GET {} failed {}, retry after {}s ({} left)", string, apiResponse.error, l, n);
+                VoxLinkMod.LOGGER.warn("GET {} failed {}, retry after {}s ({} left)", new Object[]{string, apiResponse.error, l, n});
                 CompletableFuture<ApiResponse> completableFuture = new CompletableFuture<ApiResponse>();
                 try {
-                    this.scheduler.schedule(() -> this.getWithRetry(string, n - 1).whenComplete((apiResponse, throwable) -> {
+                    this.scheduler.schedule(() -> this.getWithRetry(string, n - 1).whenComplete((retryResponse, throwable) -> {
                         if (throwable != null) {
                             completableFuture.completeExceptionally((Throwable)throwable);
                         } else {
-                            completableFuture.complete((ApiResponse)apiResponse);
+                            completableFuture.complete((ApiResponse)retryResponse);
                         }
                     }), l, TimeUnit.SECONDS);
                 }
@@ -464,42 +506,45 @@ public class SignalingClient {
     }
 
     private CompletableFuture<ApiResponse> httpPostOnce(String string, JsonObject jsonObject, long l) {
-        String string2 = string.startsWith("http") ? string : this.getRpcBaseUrl() + string;
-        LogHelper.logDebug(VoxLinkMod.LOGGER, "[SignalingClient] POST {}", (Object)string2);
-        long l2 = System.currentTimeMillis();
-        return ((CompletableFuture)((CompletableFuture)Http8.postAsync(string2, jsonObject, "Mozilla/5.0 (Java) VoxLink/1.1.6", l).applyToEither((CompletionStage)SignalingClient.delayedFail(l, TimeUnit.MILLISECONDS), Function.identity())).thenApply(response -> {
-            long l2 = System.currentTimeMillis() - l2;
-            LogHelper.logDebug(VoxLinkMod.LOGGER, "[SignalingClient] POST {} completed in {}ms, status={}", string2, l2, response.statusCode);
-            int n = response.statusCode;
-            if (n == 200) {
-                return ApiResponse.fromHttpResponse(n, response.body);
-            }
-            if (n == 429) {
-                int n2 = SignalingClient.parseRetryAfter(response);
-                return new ApiResponse(false, "RATE_LIMITED", "RATE_LIMITED", null, -1, n2);
-            }
-            if (n != 502 && n != 503 && n != 504) {
-                ApiResponse apiResponse = ApiResponse.tryParseError(response.body);
-                return apiResponse != null ? apiResponse : new ApiResponse(false, "SERVER_" + n, "SERVER_" + n, null);
-            }
-            ApiResponse apiResponse = ApiResponse.tryParseError(response.body);
-            return apiResponse != null ? apiResponse : new ApiResponse(false, "CDN_ERROR", "CDN_ERROR", null, -1, 5);
-        })).exceptionally(throwable -> {
-            long l2 = System.currentTimeMillis() - l2;
-            String string2 = throwable == null ? null : throwable.getMessage();
-            Throwable throwable2 = throwable != null ? throwable.getCause() : null;
-            LogHelper.logWarn(VoxLinkMod.LOGGER, "[SignalingClient] POST {} failed after {}ms: {} (reason: {})", string2, l2, string2, throwable2 != null ? throwable2.getClass().getSimpleName() : "none");
-            if (!(throwable instanceof TimeoutException || string2 != null && (string2.contains("timed out") || string2.contains("Timeout") || string2.contains("timed_out")))) {
-                if (string2 == null || !string2.contains("refused") && !string2.contains("Connection reset")) {
-                    if (string2 != null && string2.contains("SSL")) {
-                        return new ApiResponse(false, "NETWORK_ERROR", "SSL_ERROR", null);
-                    }
-                    return string2 == null || !string2.contains("UnknownHost") && !string2.contains("nodename") ? new ApiResponse(false, "NETWORK_ERROR", "NETWORK_ERROR", null) : new ApiResponse(false, "NETWORK_ERROR", "UNKNOWN_HOST", null);
+        String url = string.startsWith("http") ? string : this.getRpcBaseUrl() + string;
+        VoxLinkMod.LOGGER.debug("[SignalingClient] POST {}", (Object)url);
+        long startedAt = System.currentTimeMillis();
+        return Http8.postAsync(url, jsonObject, "Mozilla/5.0 (Java) VoxLink/1.1.9", l)
+            .applyToEither(SignalingClient.delayedFail(l, TimeUnit.MILLISECONDS), Function.identity())
+            .thenApply(response -> {
+                long elapsed = System.currentTimeMillis() - startedAt;
+                VoxLinkMod.LOGGER.debug("[SignalingClient] POST {} completed in {}ms, status={}", new Object[]{url, elapsed, response.statusCode});
+                int n = response.statusCode;
+                if (n == 200) {
+                    return ApiResponse.fromHttpResponse(n, response.body);
                 }
-                return new ApiResponse(false, "NETWORK_ERROR", "CONNECTION_REFUSED", null);
-            }
-            return new ApiResponse(false, "NETWORK_ERROR", "CONNECTION_TIMEOUT", null);
-        });
+                if (n == 429) {
+                    int n2 = SignalingClient.parseRetryAfter(response);
+                    return new ApiResponse(false, "RATE_LIMITED", "RATE_LIMITED", null, -1, n2);
+                }
+                if (n != 502 && n != 503 && n != 504) {
+                    ApiResponse apiResponse = ApiResponse.tryParseError(response.body);
+                    return apiResponse != null ? apiResponse : new ApiResponse(false, "SERVER_" + n, "SERVER_" + n, null);
+                }
+                ApiResponse apiResponse = ApiResponse.tryParseError(response.body);
+                return apiResponse != null ? apiResponse : new ApiResponse(false, "CDN_ERROR", "CDN_ERROR", null, -1, 5);
+            })
+            .exceptionally(throwable -> {
+                long elapsed = System.currentTimeMillis() - startedAt;
+                String errMsg = throwable == null ? null : throwable.getMessage();
+                Throwable cause = throwable != null ? throwable.getCause() : null;
+                VoxLinkMod.LOGGER.warn("[SignalingClient] POST {} failed after {}ms: {} (reason: {})", new Object[]{url, elapsed, errMsg, cause != null ? cause.getClass().getSimpleName() : "none"});
+                if (!(throwable instanceof TimeoutException || errMsg != null && (errMsg.contains("timed out") || errMsg.contains("Timeout") || errMsg.contains("timed_out")))) {
+                    if (errMsg == null || !errMsg.contains("refused") && !errMsg.contains("Connection reset")) {
+                        if (errMsg != null && errMsg.contains("SSL")) {
+                            return new ApiResponse(false, "NETWORK_ERROR", "SSL_ERROR", null);
+                        }
+                        return errMsg == null || !errMsg.contains("UnknownHost") && !errMsg.contains("nodename") ? new ApiResponse(false, "NETWORK_ERROR", "NETWORK_ERROR", null) : new ApiResponse(false, "NETWORK_ERROR", "UNKNOWN_HOST", null);
+                    }
+                    return new ApiResponse(false, "NETWORK_ERROR", "CONNECTION_REFUSED", null);
+                }
+                return new ApiResponse(false, "NETWORK_ERROR", "CONNECTION_TIMEOUT", null);
+            });
     }
 
     private CompletableFuture<ApiResponse> get(String string) {
@@ -519,42 +564,45 @@ public class SignalingClient {
     }
 
     private CompletableFuture<ApiResponse> httpGetOnce(String string, long l) {
-        String string2 = string.startsWith("http") ? string : this.getRpcBaseUrl() + string;
-        LogHelper.logDebug(VoxLinkMod.LOGGER, "[SignalingClient] GET {}", (Object)string2);
-        long l2 = System.currentTimeMillis();
-        return ((CompletableFuture)((CompletableFuture)Http8.getAsync(string2, "Mozilla/5.0 (Java) VoxLink/1.1.6", l).applyToEither((CompletionStage)SignalingClient.delayedFail(l, TimeUnit.MILLISECONDS), Function.identity())).thenApply(response -> {
-            long l2 = System.currentTimeMillis() - l2;
-            LogHelper.logDebug(VoxLinkMod.LOGGER, "[SignalingClient] GET {} completed in {}ms, status={}", string2, l2, response.statusCode);
-            int n = response.statusCode;
-            if (n == 200) {
-                return ApiResponse.fromHttpResponse(n, response.body);
-            }
-            if (n == 429) {
-                int n2 = SignalingClient.parseRetryAfter(response);
-                return new ApiResponse(false, "RATE_LIMITED", "RATE_LIMITED", null, -1, n2);
-            }
-            if (n != 502 && n != 503 && n != 504) {
-                ApiResponse apiResponse = ApiResponse.tryParseError(response.body);
-                return apiResponse != null ? apiResponse : new ApiResponse(false, "SERVER_" + n, "SERVER_" + n, null);
-            }
-            ApiResponse apiResponse = ApiResponse.tryParseError(response.body);
-            return apiResponse != null ? apiResponse : new ApiResponse(false, "CDN_ERROR", "CDN_ERROR", null, -1, 5);
-        })).exceptionally(throwable -> {
-            long l2 = System.currentTimeMillis() - l2;
-            String string2 = throwable == null ? null : throwable.getMessage();
-            Throwable throwable2 = throwable != null ? throwable.getCause() : null;
-            LogHelper.logWarn(VoxLinkMod.LOGGER, "[SignalingClient] GET {} failed after {}ms: {} (reason: {})", string2, l2, string2, throwable2 != null ? throwable2.getClass().getSimpleName() : "none");
-            if (!(throwable instanceof TimeoutException || string2 != null && (string2.contains("timed out") || string2.contains("Timeout")))) {
-                if (string2 == null || !string2.contains("refused") && !string2.contains("Connection reset")) {
-                    if (string2 != null && string2.contains("SSL")) {
-                        return new ApiResponse(false, "NETWORK_ERROR", "SSL_ERROR", null);
-                    }
-                    return string2 == null || !string2.contains("UnknownHost") && !string2.contains("nodename") ? new ApiResponse(false, "NETWORK_ERROR", "NETWORK_ERROR", null) : new ApiResponse(false, "NETWORK_ERROR", "UNKNOWN_HOST", null);
+        String url = string.startsWith("http") ? string : this.getRpcBaseUrl() + string;
+        VoxLinkMod.LOGGER.debug("[SignalingClient] GET {}", (Object)url);
+        long startedAt = System.currentTimeMillis();
+        return Http8.getAsync(url, "Mozilla/5.0 (Java) VoxLink/1.1.9", l)
+            .applyToEither(SignalingClient.delayedFail(l, TimeUnit.MILLISECONDS), Function.identity())
+            .thenApply(response -> {
+                long elapsed = System.currentTimeMillis() - startedAt;
+                VoxLinkMod.LOGGER.debug("[SignalingClient] GET {} completed in {}ms, status={}", new Object[]{url, elapsed, response.statusCode});
+                int n = response.statusCode;
+                if (n == 200) {
+                    return ApiResponse.fromHttpResponse(n, response.body);
                 }
-                return new ApiResponse(false, "NETWORK_ERROR", "CONNECTION_REFUSED", null);
-            }
-            return new ApiResponse(false, "NETWORK_ERROR", "CONNECTION_TIMEOUT", null);
-        });
+                if (n == 429) {
+                    int n2 = SignalingClient.parseRetryAfter(response);
+                    return new ApiResponse(false, "RATE_LIMITED", "RATE_LIMITED", null, -1, n2);
+                }
+                if (n != 502 && n != 503 && n != 504) {
+                    ApiResponse apiResponse = ApiResponse.tryParseError(response.body);
+                    return apiResponse != null ? apiResponse : new ApiResponse(false, "SERVER_" + n, "SERVER_" + n, null);
+                }
+                ApiResponse apiResponse = ApiResponse.tryParseError(response.body);
+                return apiResponse != null ? apiResponse : new ApiResponse(false, "CDN_ERROR", "CDN_ERROR", null, -1, 5);
+            })
+            .exceptionally(throwable -> {
+                long elapsed = System.currentTimeMillis() - startedAt;
+                String errMsg = throwable == null ? null : throwable.getMessage();
+                Throwable cause = throwable != null ? throwable.getCause() : null;
+                VoxLinkMod.LOGGER.warn("[SignalingClient] GET {} failed after {}ms: {} (reason: {})", new Object[]{url, elapsed, errMsg, cause != null ? cause.getClass().getSimpleName() : "none"});
+                if (!(throwable instanceof TimeoutException || errMsg != null && (errMsg.contains("timed out") || errMsg.contains("Timeout")))) {
+                    if (errMsg == null || !errMsg.contains("refused") && !errMsg.contains("Connection reset")) {
+                        if (errMsg != null && errMsg.contains("SSL")) {
+                            return new ApiResponse(false, "NETWORK_ERROR", "SSL_ERROR", null);
+                        }
+                        return errMsg == null || !errMsg.contains("UnknownHost") && !errMsg.contains("nodename") ? new ApiResponse(false, "NETWORK_ERROR", "NETWORK_ERROR", null) : new ApiResponse(false, "NETWORK_ERROR", "UNKNOWN_HOST", null);
+                    }
+                    return new ApiResponse(false, "NETWORK_ERROR", "CONNECTION_REFUSED", null);
+                }
+                return new ApiResponse(false, "NETWORK_ERROR", "CONNECTION_TIMEOUT", null);
+            });
     }
 
     private static int parseRetryAfter(Http8.Response response) {
@@ -688,8 +736,8 @@ public class SignalingClient {
             }
             catch (Exception exception) {
                 String string2 = string != null ? string.substring(0, Math.min(string.length(), 500)) : "null";
-                LogHelper.logError(VoxLinkMod.LOGGER, "API response parse failed (status {}): {}", (Object)n, (Object)string2);
-                LogHelper.logError(VoxLinkMod.LOGGER, "Parse error: {}", (Object)exception.getMessage());
+                VoxLinkMod.LOGGER.error("API response parse failed (status {}): {}", (Object)n, (Object)string2);
+                VoxLinkMod.LOGGER.error("Parse error: {}", (Object)exception.getMessage());
                 return new ApiResponse(false, "PARSE_ERROR", "\u54cd\u5e94\u89e3\u6790\u5931\u8d25", null);
             }
         }

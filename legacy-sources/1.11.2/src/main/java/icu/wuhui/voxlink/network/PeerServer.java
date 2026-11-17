@@ -17,7 +17,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpServer;
-import icu.wuhui.voxlink.LogHelper;
 import icu.wuhui.voxlink.VoxLinkMod;
 import icu.wuhui.voxlink.room.RoomInfo;
 import icu.wuhui.voxlink.room.RoomManager;
@@ -106,11 +105,11 @@ public class PeerServer {
             httpServer.start();
             port = httpServer.getAddress().getPort();
             PeerServer.refreshCache();
-            LogHelper.logInfo(LOGGER, "Peer server started, port {}", (Object)port);
+            LOGGER.info("Peer server started, port {}", (Object)port);
             return port;
         }
         catch (IOException iOException) {
-            LogHelper.logError(LOGGER, "Peer server start failed: {}", (Object)iOException.getMessage());
+            LOGGER.error("Peer server start failed: {}", (Object)iOException.getMessage());
             return -1;
         }
     }
@@ -133,14 +132,14 @@ public class PeerServer {
     }
 
     public static void refreshCache() {
-        Object object;
+        Minecraft mc;
         try {
-            object = Minecraft.func_71410_x();
-            if (object != null) {
-                if (object.func_152345_ab()) {
-                    cachedGameVersion = object.func_175600_c();
+            mc = Minecraft.getMinecraft();
+            if (mc != null) {
+                if (mc.isCallingFromMinecraftThread()) {
+                    cachedGameVersion = mc.getVersion();
                 } else {
-                    object.func_152344_a(() -> PeerServer.lambda$refreshCache$2((Minecraft)object));
+                    mc.addScheduledTask(() -> PeerServer.refreshCacheBody(mc));
                 }
             }
         }
@@ -151,20 +150,20 @@ public class PeerServer {
             cachedProtocolVersion = 340;
         }
         catch (Exception exception) {
-            LogHelper.logDebug(LOGGER, "Failed to get protocol version: {}", (Object)exception.getMessage());
+            LOGGER.debug("Failed to get protocol version: {}", (Object)exception.getMessage());
         }
         try {
-            object = new ArrayList();
+            List<Map<String, String>> mods = new ArrayList<Map<String, String>>();
             for (ModContainer modContainer : Loader.instance().getActiveModList()) {
                 LinkedHashMap<String, String> linkedHashMap = new LinkedHashMap<String, String>();
                 linkedHashMap.put("id", modContainer.getModId());
                 linkedHashMap.put("version", modContainer.getVersion());
-                ((ArrayList)object).add(linkedHashMap);
+                mods.add(linkedHashMap);
             }
-            cachedMods = Collections.unmodifiableList(object);
+            cachedMods = Collections.unmodifiableList(mods);
         }
         catch (Exception exception) {
-            LogHelper.logDebug(LOGGER, "Failed to get mod list: {}", (Object)exception.getMessage());
+            LOGGER.debug("Failed to get mod list: {}", (Object)exception.getMessage());
         }
     }
 
@@ -194,14 +193,14 @@ public class PeerServer {
         jsonObject.addProperty("gameVersion", cachedGameVersion);
         jsonObject.addProperty("serverProtocolVersion", (Number)cachedProtocolVersion);
         jsonObject.addProperty("geyserLoaded", Boolean.valueOf(false));
-        jsonObject.addProperty("voxlinkVersion", "1.1.8");
+        jsonObject.addProperty("voxlinkVersion", "1.1.9");
         jsonObject.add("mods", GSON.toJsonTree(cachedMods));
         return jsonObject;
     }
 
-    private static /* synthetic */ void lambda$refreshCache$2(Minecraft minecraft) {
+    private static void refreshCacheBody(Minecraft minecraft) {
         try {
-            cachedGameVersion = minecraft.func_175600_c();
+            cachedGameVersion = minecraft.getVersion();
         }
         catch (Exception exception) {
             // empty catch block

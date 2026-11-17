@@ -10,7 +10,6 @@
  */
 package icu.wuhui.voxlink.network;
 
-import icu.wuhui.voxlink.LogHelper;
 import icu.wuhui.voxlink.network.ReliableUdpTransport;
 import icu.wuhui.voxlink.room.ConnectionManager;
 import icu.wuhui.voxlink.ui.VoxLinkChat;
@@ -69,12 +68,12 @@ public class RelayBridge {
             RelaySession relaySession;
             String string3 = string.compareTo(string2) < 0 ? string + "<->" + string2 : string2 + "<->" + string;
             if (this.activeRelays.putIfAbsent(string3, relaySession = new RelaySession(string, string2, reliableUdpTransport, reliableUdpTransport2)) != null) {
-                LogHelper.logInfo(LOGGER, "[Relay] Relay session already exists: {}", (Object)string3);
+                LOGGER.info("[Relay] Relay session already exists: {}", (Object)string3);
             } else {
                 relaySession.startForwarding();
-                LogHelper.logInfo(LOGGER, "[Relay] Relay started: {} (A={}, B={})", string3, string, string2);
-                Minecraft minecraft = Minecraft.func_71410_x();
-                if (minecraft.field_71439_g != null) {
+                LOGGER.info("[Relay] Relay started: {} (A={}, B={})", new Object[]{string3, string, string2});
+                Minecraft minecraft = Minecraft.getMinecraft();
+                if (minecraft.player != null) {
                     VoxLinkChat.print((ITextComponent)new TextComponentString("voxlink.relay.started"));
                 }
                 if (this.running.compareAndSet(false, true)) {
@@ -82,7 +81,7 @@ public class RelayBridge {
                 }
             }
         } else {
-            LogHelper.logWarn(LOGGER, "[Relay] Reject invalid relay session: {} <-> {}", (Object)string, (Object)string2);
+            LOGGER.warn("[Relay] Reject invalid relay session: {} <-> {}", (Object)string, (Object)string2);
         }
     }
 
@@ -97,7 +96,7 @@ public class RelayBridge {
 
     public void stopAllRelays() {
         if (!this.activeRelays.isEmpty()) {
-            LogHelper.logInfo(LOGGER, "[Relay] Stopping {} relay sessions", (Object)this.activeRelays.size());
+            LOGGER.info("[Relay] Stopping {} relay sessions", (Object)this.activeRelays.size());
             for (RelaySession relaySession : this.activeRelays.values()) {
                 try {
                     relaySession.stop();
@@ -113,13 +112,13 @@ public class RelayBridge {
     }
 
     private void monitorRelays() {
-        ArrayList arrayList = new ArrayList();
+        ArrayList<String> arrayList = new ArrayList<String>();
         this.activeRelays.entrySet().removeIf(entry -> {
             RelaySession relaySession = (RelaySession)entry.getValue();
             if (relaySession.transportA.isConnected() && relaySession.transportB.isConnected()) {
                 return false;
             }
-            LogHelper.logWarn(LOGGER, "[Relay] Relay session disconnected: {}", entry.getKey());
+            LOGGER.warn("[Relay] Relay session disconnected: {}", entry.getKey());
             arrayList.add((String)entry.getKey());
             relaySession.stop();
             return true;
@@ -129,7 +128,7 @@ public class RelayBridge {
                 this.monitorTask.cancel(false);
                 this.monitorTask = null;
             }
-            LogHelper.logInfo(LOGGER, "[Relay] No relay sessions, monitor stopped");
+            LOGGER.info("[Relay] No relay sessions, monitor stopped");
         }
         if (!arrayList.isEmpty()) {
             for (String string : arrayList) {
@@ -179,7 +178,7 @@ public class RelayBridge {
                     }
                     catch (Exception exception) {
                         if (!this.forwarding) break;
-                        LogHelper.logDebug(LOGGER, "[Relay] A->B exception: {}", (Object)exception.getMessage());
+                        LOGGER.debug("[Relay] A->B exception: {}", (Object)exception.getMessage());
                         break;
                     }
                 }
@@ -199,7 +198,7 @@ public class RelayBridge {
                     }
                     catch (Exception exception) {
                         if (!this.forwarding) break;
-                        LogHelper.logDebug(LOGGER, "[Relay] B->A exception: {}", (Object)exception.getMessage());
+                        LOGGER.debug("[Relay] B->A exception: {}", (Object)exception.getMessage());
                         break;
                     }
                 }

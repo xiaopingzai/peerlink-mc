@@ -67,26 +67,26 @@ public final class ConnectionHelper {
         if (System.currentTimeMillis() - connectInitiatedAt < 200L) {
             return false;
         }
-        Minecraft minecraft = Minecraft.func_71410_x();
-        NetHandlerPlayClient netHandlerPlayClient = minecraft.func_147114_u();
+        Minecraft minecraft = Minecraft.getMinecraft();
+        NetHandlerPlayClient netHandlerPlayClient = minecraft.getConnection();
         if (netHandlerPlayClient == null) {
             return false;
         }
-        NetworkManager networkManager = netHandlerPlayClient.func_147298_b();
-        if (networkManager != null && networkManager.func_150724_d()) {
-            EntityPlayerSP entityPlayerSP = minecraft.field_71439_g;
+        NetworkManager networkManager = netHandlerPlayClient.getNetworkManager();
+        if (networkManager != null && networkManager.isChannelOpen()) {
+            EntityPlayerSP entityPlayerSP = minecraft.player;
             return entityPlayerSP == null ? false : prevPlayerStrong == null || entityPlayerSP != prevPlayerStrong;
         }
         return false;
     }
 
     public static boolean isConnectionRejected() {
-        Minecraft minecraft = Minecraft.func_71410_x();
-        if (minecraft.field_71462_r instanceof GuiDisconnected) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft.currentScreen instanceof GuiDisconnected) {
             return true;
         }
-        NetHandlerPlayClient netHandlerPlayClient = minecraft.func_147114_u();
-        return netHandlerPlayClient != null && !netHandlerPlayClient.func_147298_b().func_150724_d() && !(minecraft.field_71462_r instanceof GuiConnecting);
+        NetHandlerPlayClient netHandlerPlayClient = minecraft.getConnection();
+        return netHandlerPlayClient != null && !netHandlerPlayClient.getNetworkManager().isChannelOpen() && !(minecraft.currentScreen instanceof GuiConnecting);
     }
 
     public static void clearConnectInitiated() {
@@ -101,8 +101,8 @@ public final class ConnectionHelper {
     }
 
     public static void connectToServer(int n, RoomInfo roomInfo) {
-        Minecraft minecraft = Minecraft.func_71410_x();
-        minecraft.func_152344_a(() -> {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        minecraft.addScheduledTask(() -> {
             if (n > 0) {
                 if (!connecting.compareAndSet(false, true)) {
                     LogHelper.logWarn(VoxLinkMod.LOGGER, "[ConnectionHelper] Already connecting, ignore duplicate call");
@@ -110,12 +110,12 @@ public final class ConnectionHelper {
                 }
                 try {
                     long l;
-                    prevPlayerStrong = minecraft.field_71439_g;
+                    prevPlayerStrong = minecraft.player;
                     connectInitiatedAt = l = System.currentTimeMillis();
                     roomInfo.setLocalBridgePort(n);
                     String string = "127.0.0.1:" + n;
                     ServerData serverData = new ServerData(roomInfo.getName(), string, false);
-                    minecraft.func_147108_a((GuiScreen)new GuiConnecting(minecraft.field_71462_r, minecraft, serverData));
+                    minecraft.displayGuiScreen((GuiScreen)new GuiConnecting(minecraft.currentScreen, minecraft, serverData));
                     resetTask = RESET_SCHEDULER.schedule(() -> {
                         if (connecting.get() && connectInitiatedAt == l) {
                             LogHelper.logInfo(VoxLinkMod.LOGGER, "[ConnectionHelper] 30s timeout, auto reset connecting flag");
@@ -144,7 +144,7 @@ public final class ConnectionHelper {
     }
 
     private static void sendError(Minecraft minecraft, String string) {
-        if (minecraft.field_71439_g != null) {
+        if (minecraft.player != null) {
             VoxLinkChat.print((ITextComponent)new TextComponentString(string));
         }
     }

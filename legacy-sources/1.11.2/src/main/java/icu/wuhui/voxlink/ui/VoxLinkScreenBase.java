@@ -32,51 +32,51 @@ extends GuiScreen {
     }
 
     protected void addButton(int n, int n2, int n3, int n4, int n5, String string) {
-        this.field_146292_n.add(new GuiButton(n, n2, n3, n4, n5, string));
+        this.buttonList.add(new GuiButton(n, n2, n3, n4, n5, string));
     }
 
     protected String t(String string) {
-        return I18n.func_135052_a((String)string, (Object[])new Object[0]);
+        return I18n.format((String)string, (Object[])new Object[0]);
     }
 
     protected String t(String string, Object ... objectArray) {
-        return I18n.func_135052_a((String)string, (Object[])objectArray);
+        return I18n.format((String)string, (Object[])objectArray);
     }
 
-    public void func_73866_w_() {
-        super.func_73866_w_();
-        this.field_146292_n.clear();
+    public void initGui() {
+        super.initGui();
+        this.buttonList.clear();
         this.addBackButton();
     }
 
     protected void addBackButton() {
-        this.addButton(1000, this.field_146294_l / 2 - 100, this.field_146295_m - 30, 200, 20, this.t("voxlink.gui.back"));
+        this.addButton(1000, this.width / 2 - 100, this.height - 30, 200, 20, this.t("voxlink.gui.back"));
     }
 
-    public void func_73863_a(int n, int n2, float f) {
-        this.func_146276_q_();
+    public void drawScreen(int n, int n2, float f) {
+        this.drawDefaultBackground();
         if (this.titleKey != null) {
-            this.field_146289_q.func_78276_b(this.t(this.titleKey), (this.field_146294_l - this.field_146289_q.func_78256_a(this.t(this.titleKey))) / 2, 12, -1);
+            this.fontRenderer.drawString(this.t(this.titleKey), (this.width - this.fontRenderer.getStringWidth(this.t(this.titleKey))) / 2, 12, -1);
         }
         if (this.subTitleKey != null) {
-            this.field_146289_q.func_78276_b(this.t(this.subTitleKey), (this.field_146294_l - this.field_146289_q.func_78256_a(this.t(this.subTitleKey))) / 2, 28, -5592406);
+            this.fontRenderer.drawString(this.t(this.subTitleKey), (this.width - this.fontRenderer.getStringWidth(this.t(this.subTitleKey))) / 2, 28, -5592406);
         }
-        super.func_73863_a(n, n2, f);
+        super.drawScreen(n, n2, f);
     }
 
-    protected void func_146284_a(GuiButton guiButton) {
-        if (guiButton.field_146127_k == 1000 && Minecraft.func_71410_x() != null) {
+    protected void actionPerformed(GuiButton guiButton) {
+        if (guiButton.id == 1000 && Minecraft.getMinecraft() != null) {
             this.actionPerformedBack();
         }
     }
 
     protected void actionPerformedBack() {
-        if (Minecraft.func_71410_x() != null) {
-            Minecraft.func_71410_x().func_147108_a((GuiScreen)null);
+        if (Minecraft.getMinecraft() != null) {
+            Minecraft.getMinecraft().displayGuiScreen((GuiScreen)null);
         }
     }
 
-    public boolean func_73868_f() {
+    public boolean doesGuiPauseGame() {
         return false;
     }
 }

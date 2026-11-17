@@ -13,7 +13,6 @@ package icu.wuhui.voxlink.network;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import icu.wuhui.voxlink.LogHelper;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -28,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -54,9 +54,9 @@ public class P2POverlayManager {
     private DatagramSocket socket;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicReference<Role> role = new AtomicReference<Role>(Role.NONE);
-    private final AtomicReference<InetSocketAddress> upstreamAddr = new AtomicReference<Object>(null);
+    private final AtomicReference<InetSocketAddress> upstreamAddr = new AtomicReference<InetSocketAddress>(null);
     private volatile String upstreamId;
-    private final AtomicReference<InetSocketAddress> downstreamAddr = new AtomicReference<Object>(null);
+    private final AtomicReference<InetSocketAddress> downstreamAddr = new AtomicReference<InetSocketAddress>(null);
     private volatile String downstreamId;
     private String nodeId;
     private final int localPort;
@@ -67,8 +67,8 @@ public class P2POverlayManager {
     private volatile PacketHandler handler;
     private final AtomicInteger upstreamLatency = new AtomicInteger(-1);
     private final AtomicInteger downstreamLatency = new AtomicInteger(-1);
-    private final AtomicReference<PendingPing> pendingUpstreamPing = new AtomicReference<Object>(null);
-    private final AtomicReference<PendingPing> pendingDownstreamPing = new AtomicReference<Object>(null);
+    private final AtomicReference<PendingPing> pendingUpstreamPing = new AtomicReference<PendingPing>(null);
+    private final AtomicReference<PendingPing> pendingDownstreamPing = new AtomicReference<PendingPing>(null);
     private final AtomicInteger upstreamPingFailures = new AtomicInteger(0);
     private final AtomicInteger downstreamPingFailures = new AtomicInteger(0);
 
@@ -87,7 +87,7 @@ public class P2POverlayManager {
                 this.socket.setSoTimeout(1000);
             }
             catch (SocketException socketException) {
-                LogHelper.logError(LOGGER, "Overlay UDP port {} bind failed: {}", (Object)this.localPort, (Object)socketException.getMessage());
+                LOGGER.error("Overlay UDP port {} bind failed: {}", (Object)this.localPort, (Object)socketException.getMessage());
                 throw new IOException("Failed to bind overlay socket", socketException);
             }
             try {
@@ -119,12 +119,12 @@ public class P2POverlayManager {
                 this.ioExecutor.submit(this::readLoop);
             }
             catch (RejectedExecutionException rejectedExecutionException) {
-                LogHelper.logError(LOGGER, "Overlay read loop submit failed: {}", (Object)rejectedExecutionException.getMessage());
+                LOGGER.error("Overlay read loop submit failed: {}", (Object)rejectedExecutionException.getMessage());
                 this.stop();
                 throw new IOException("Failed to submit overlay read loop", rejectedExecutionException);
             }
             this.pingScheduler.scheduleAtFixedRate(this::pingTask, 2L, 2L, TimeUnit.SECONDS);
-            LogHelper.logInfo(LOGGER, "P2P overlay started, port {}, node {}", (Object)this.socket.getLocalPort(), (Object)this.nodeId);
+            LOGGER.info("P2P overlay started, port {}, node {}", (Object)this.socket.getLocalPort(), (Object)this.nodeId);
         }
     }
 
@@ -138,7 +138,7 @@ public class P2POverlayManager {
             } else {
                 this.role.set(Role.CHAIN_MIDDLE);
             }
-            LogHelper.logInfo(LOGGER, "Upstream connection: {} at {}:{} role {}", new Object[]{string, string2, n, this.role.get()});
+            LOGGER.info("Upstream connection: {} at {}:{} role {}", new Object[]{string, string2, n, this.role.get()});
             this.sendHandshake(string, inetSocketAddress);
         }
     }
@@ -148,7 +148,7 @@ public class P2POverlayManager {
             InetSocketAddress inetSocketAddress = new InetSocketAddress(string2, n);
             this.downstreamAddr.set(inetSocketAddress);
             this.downstreamId = string;
-            LogHelper.logInfo(LOGGER, "Downstream set: {} at {}:{}", string, string2, n);
+            LOGGER.info("Downstream set: {} at {}:{}", new Object[]{string, string2, n});
             if (this.role.get() != Role.CHAIN_HEAD && this.role.get() != Role.CHAIN_MIDDLE) {
                 if (this.upstreamAddr.get() != null) {
                     this.role.set(Role.CHAIN_MIDDLE);
@@ -173,7 +173,7 @@ public class P2POverlayManager {
                 this.downstreamAddr.set(null);
                 this.downstreamId = null;
             }
-            LogHelper.logInfo(LOGGER, "Became chain head, downstream: {}", (Object)(string != null ? string : "none"));
+            LOGGER.info("Became chain head, downstream: {}", (Object)(string != null ? string : "none"));
         }
     }
 
@@ -183,7 +183,7 @@ public class P2POverlayManager {
         this.upstreamId = null;
         this.downstreamAddr.set(null);
         this.downstreamId = null;
-        LogHelper.logInfo(LOGGER, "Switched to direct mode");
+        LOGGER.info("Switched to direct mode");
     }
 
     public int getUpstreamLatency() {
@@ -222,7 +222,7 @@ public class P2POverlayManager {
         }
         this.role.set(Role.NONE);
         this.seenSeq.clear();
-        LogHelper.logInfo(LOGGER, "P2P overlay stopped");
+        LOGGER.info("P2P overlay stopped");
     }
 
     public int getLocalPort() {
@@ -249,11 +249,11 @@ public class P2POverlayManager {
             }
             catch (SocketException socketException) {
                 if (!this.running.get()) break;
-                LogHelper.logDebug(LOGGER, "Overlay read socket temp error: {}", (Object)socketException.getMessage());
+                LOGGER.debug("Overlay read socket temp error: {}", (Object)socketException.getMessage());
             }
             catch (Exception exception) {
                 if (!this.running.get()) continue;
-                LogHelper.logDebug(LOGGER, "Overlay read error: {}", (Object)exception.getMessage());
+                LOGGER.debug("Overlay read error: {}", (Object)exception.getMessage());
             }
         }
     }
@@ -290,19 +290,19 @@ public class P2POverlayManager {
                     break;
                 }
                 default: {
-                    LogHelper.logDebug(LOGGER, "Unknown overlay packet type: {}", (Object)string2);
+                    LOGGER.debug("Unknown overlay packet type: {}", (Object)string2);
                     break;
                 }
             }
         }
         catch (Exception exception) {
-            LogHelper.logDebug(LOGGER, "Overlay packet process failed: {}", (Object)exception.getMessage());
+            LOGGER.debug("Overlay packet process failed: {}", (Object)exception.getMessage());
         }
     }
 
     private void handleHandshake(JsonObject jsonObject, InetSocketAddress inetSocketAddress) {
         String string = jsonObject.has("from") ? jsonObject.get("from").getAsString() : "";
-        LogHelper.logInfo(LOGGER, "Received downstream handshake: {}", (Object)string);
+        LOGGER.info("Received downstream handshake: {}", (Object)string);
         if (this.role.get() == Role.CHAIN_HEAD || this.role.get() == Role.CHAIN_MIDDLE) {
             this.downstreamAddr.set(inetSocketAddress);
             this.downstreamId = string;
@@ -352,21 +352,20 @@ public class P2POverlayManager {
         int n = jsonObject.has("seq") ? jsonObject.get("seq").getAsInt() : 0;
         String string3 = string2 + ":" + n;
         if (this.seenSeq.putIfAbsent(string3, System.currentTimeMillis()) == null) {
-            Serializable serializable;
             JsonObject jsonObject2;
             if (this.seenSeq.size() > 1000) {
                 long l = System.currentTimeMillis() - 60000L;
-                jsonObject2 = this.seenSeq.entrySet().iterator();
-                while (jsonObject2.hasNext() && this.seenSeq.size() > 1000) {
-                    if (jsonObject2.next().getValue() >= l) continue;
-                    jsonObject2.remove();
+                Iterator<Map.Entry<String, Long>> iter = this.seenSeq.entrySet().iterator();
+                while (iter.hasNext() && this.seenSeq.size() > 1000) {
+                    if (iter.next().getValue() >= l) continue;
+                    iter.remove();
                 }
                 if (this.seenSeq.size() > 1000) {
-                    serializable = new ArrayList<Map.Entry<String, Long>>(this.seenSeq.entrySet());
-                    ((ArrayList)serializable).sort(Comparator.comparingLong(Map.Entry::getValue));
+                    ArrayList<Map.Entry<String, Long>> sorted = new ArrayList<Map.Entry<String, Long>>(this.seenSeq.entrySet());
+                    sorted.sort(Comparator.comparingLong((Map.Entry<String, Long> e) -> e.getValue()));
                     int n2 = this.seenSeq.size() - 1000;
                     for (int i = 0; i < n2; ++i) {
-                        this.seenSeq.remove(((ArrayList)serializable).get(i).getKey());
+                        this.seenSeq.remove(sorted.get(i).getKey());
                     }
                 }
             }
@@ -383,9 +382,9 @@ public class P2POverlayManager {
                 } else if ("downstream".equals(string)) {
                     this.forwardToUpstream(jsonObject);
                 } else {
-                    serializable = this.upstreamAddr.get();
+                    InetSocketAddress upstream = this.upstreamAddr.get();
                     InetSocketAddress inetSocketAddress2 = this.downstreamAddr.get();
-                    if (serializable != null && ((InetSocketAddress)serializable).equals(inetSocketAddress)) {
+                    if (upstream != null && upstream.equals(inetSocketAddress)) {
                         this.forwardToDownstream(jsonObject);
                     } else if (inetSocketAddress2 != null && inetSocketAddress2.equals(inetSocketAddress)) {
                         this.forwardToUpstream(jsonObject);
@@ -437,7 +436,7 @@ public class P2POverlayManager {
                 if (pendingPing != null) {
                     n = this.upstreamPingFailures.incrementAndGet();
                     if (n >= 5) {
-                        LogHelper.logWarn(LOGGER, "Upstream link broken, {} consecutive ping failures", (Object)n);
+                        LOGGER.warn("Upstream link broken, {} consecutive ping failures", (Object)n);
                         this.upstreamPingFailures.set(0);
                         this.pendingUpstreamPing.compareAndSet(pendingPing, null);
                         if (this.handler != null) {
@@ -461,7 +460,7 @@ public class P2POverlayManager {
                 if (pendingPing != null) {
                     n = this.downstreamPingFailures.incrementAndGet();
                     if (n >= 5) {
-                        LogHelper.logWarn(LOGGER, "Downstream link broken, {} consecutive ping failures", (Object)n);
+                        LOGGER.warn("Downstream link broken, {} consecutive ping failures", (Object)n);
                         this.downstreamPingFailures.set(0);
                         this.pendingDownstreamPing.compareAndSet(pendingPing, null);
                         if (this.handler != null) {
@@ -529,7 +528,7 @@ public class P2POverlayManager {
             this.socket.send(datagramPacket);
         }
         catch (Exception exception) {
-            LogHelper.logDebug(LOGGER, "Send packet to {} failed: {}", (Object)inetSocketAddress, (Object)exception.getMessage());
+            LOGGER.debug("Send packet to {} failed: {}", (Object)inetSocketAddress, (Object)exception.getMessage());
         }
     }
 
@@ -542,7 +541,7 @@ public class P2POverlayManager {
             return byteArrayOutputStream.toByteArray();
         }
         catch (IOException iOException) {
-            LogHelper.logError(LOGGER, "Overlay data compression failed: {}", (Object)iOException.getMessage());
+            LOGGER.error("Overlay data compression failed: {}", (Object)iOException.getMessage());
             throw new RuntimeException("Compression failed", iOException);
         }
     }

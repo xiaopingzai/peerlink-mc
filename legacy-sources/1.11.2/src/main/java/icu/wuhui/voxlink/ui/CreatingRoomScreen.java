@@ -30,33 +30,33 @@ extends VoxLinkScreenBase {
     }
 
     @Override
-    public void func_73866_w_() {
-        super.func_73866_w_();
-        this.addButton(1, this.field_146294_l / 2 - 100, this.field_146295_m - 60, 200, 20, I18n.func_135052_a((String)"voxlink.gui.close_room", (Object[])new Object[0]));
+    public void initGui() {
+        super.initGui();
+        this.addButton(1, this.width / 2 - 100, this.height - 60, 200, 20, I18n.format((String)"voxlink.gui.close_room", (Object[])new Object[0]));
     }
 
     @Override
-    public void func_73863_a(int n, int n2, float f) {
-        super.func_73863_a(n, n2, f);
-        int n3 = this.field_146294_l / 2;
+    public void drawScreen(int n, int n2, float f) {
+        super.drawScreen(n, n2, f);
+        int n3 = this.width / 2;
         if (this.roomInfo != null && this.roomInfo.getCode() != null && !this.roomInfo.getCode().isEmpty()) {
-            this.field_146289_q.func_78276_b(I18n.func_135052_a((String)"voxlink.creating.room_ready", (Object[])new Object[0]), (this.field_146294_l - this.field_146289_q.func_78256_a(I18n.func_135052_a((String)"voxlink.creating.room_ready", (Object[])new Object[0]))) / 2, this.field_146295_m / 2 - 30, -11141291);
-            String string = I18n.func_135052_a((String)"voxlink.creating.room_code", (Object[])new Object[]{this.roomInfo != null ? this.roomInfo.getCode() : ""});
-            this.field_146289_q.func_78276_b(string, (this.field_146294_l - this.field_146289_q.func_78256_a(string)) / 2, this.field_146295_m / 2 - 6, -1);
+            this.fontRenderer.drawString(I18n.format((String)"voxlink.creating.room_ready", (Object[])new Object[0]), (this.width - this.fontRenderer.getStringWidth(I18n.format((String)"voxlink.creating.room_ready", (Object[])new Object[0]))) / 2, this.height / 2 - 30, -11141291);
+            String string = I18n.format((String)"voxlink.creating.room_code", (Object[])new Object[]{this.roomInfo != null ? this.roomInfo.getCode() : ""});
+            this.fontRenderer.drawString(string, (this.width - this.fontRenderer.getStringWidth(string)) / 2, this.height / 2 - 6, -1);
         } else {
-            this.field_146289_q.func_78276_b(I18n.func_135052_a((String)"voxlink.creating.creating", (Object[])new Object[0]), (this.field_146294_l - this.field_146289_q.func_78256_a(I18n.func_135052_a((String)"voxlink.creating.creating", (Object[])new Object[0]))) / 2, this.field_146295_m / 2 - 10, -5592406);
+            this.fontRenderer.drawString(I18n.format((String)"voxlink.creating.creating", (Object[])new Object[0]), (this.width - this.fontRenderer.getStringWidth(I18n.format((String)"voxlink.creating.creating", (Object[])new Object[0]))) / 2, this.height / 2 - 10, -5592406);
         }
     }
 
     @Override
-    protected void func_146284_a(GuiButton guiButton) {
-        if (guiButton.field_146127_k == 1) {
+    protected void actionPerformed(GuiButton guiButton) {
+        if (guiButton.id == 1) {
             if (VoxLinkMod.getRoomManager() != null) {
                 VoxLinkMod.getRoomManager().closeRoom();
             }
-            Minecraft.func_71410_x().func_147108_a(this.parentScreen);
+            Minecraft.getMinecraft().displayGuiScreen(this.parentScreen);
         } else {
-            super.func_146284_a(guiButton);
+            super.actionPerformed(guiButton);
         }
     }
 }

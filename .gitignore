@@ -17,6 +17,9 @@ classes/
 forge/
 mdk/
 
+# Decompiled-original backups kept locally for diffing, not released
+legacy-sources/1.11.2/backup-before-sync/
+
 # OS
 .DS_Store
 Thumbs.db

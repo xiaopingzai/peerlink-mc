@@ -10,7 +10,6 @@ package icu.wuhui.voxlink.network;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import icu.wuhui.voxlink.LogHelper;
 import icu.wuhui.voxlink.VoxLinkMod;
 import java.io.File;
 import java.net.NetworkInterface;
@@ -29,7 +28,7 @@ public class StunCache {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static Path getCachePath() {
-        File file = Minecraft.func_71410_x().field_71412_D;
+        File file = Minecraft.getMinecraft().mcDataDir;
         File file2 = new File(file, "voxlink");
         if (!file2.exists()) {
             file2.mkdirs();
@@ -68,21 +67,21 @@ public class StunCache {
             if (entry != null && !entry.isExpired()) {
                 String string2 = StunCache.buildNetworkFingerprint();
                 if (!string2.equals(entry.networkFingerprint)) {
-                    LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunCache] Network changed, cache invalidated");
+                    VoxLinkMod.LOGGER.info("[StunCache] Network changed, cache invalidated");
                     return null;
                 }
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunCache] Hit: NAT={}, mapped={}:{}, age={}h", entry.natType, entry.mappedIp, entry.mappedPort, (System.currentTimeMillis() - entry.timestamp) / 3600000L);
+                VoxLinkMod.LOGGER.info("[StunCache] Hit: NAT={}, mapped={}:{}, age={}h", new Object[]{entry.natType, entry.mappedIp, entry.mappedPort, (System.currentTimeMillis() - entry.timestamp) / 3600000L});
                 if (entry.mappedIp != null && !entry.mappedIp.isEmpty() && entry.mappedPort > 0) {
                     return entry;
                 }
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunCache] mapped address empty, invalidate for re-probe");
+                VoxLinkMod.LOGGER.info("[StunCache] mapped address empty, invalidate for re-probe");
                 return null;
             }
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunCache] Cache expired or invalid");
+            VoxLinkMod.LOGGER.info("[StunCache] Cache expired or invalid");
             return null;
         }
         catch (Exception exception) {
-            LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunCache] Read failed: {}", (Object)exception.getMessage());
+            VoxLinkMod.LOGGER.debug("[StunCache] Read failed: {}", (Object)exception.getMessage());
             return null;
         }
     }
@@ -93,7 +92,7 @@ public class StunCache {
             Files.deleteIfExists(path);
         }
         catch (Exception exception) {
-            LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunCache] Clear failed: {}", (Object)exception.getMessage());
+            VoxLinkMod.LOGGER.debug("[StunCache] Clear failed: {}", (Object)exception.getMessage());
         }
     }
 
@@ -103,13 +102,13 @@ public class StunCache {
                 Entry entry = new Entry(string, string2, n, list, StunCache.buildNetworkFingerprint());
                 Path path = StunCache.getCachePath();
                 Files.write(path, GSON.toJson((Object)entry).getBytes(StandardCharsets.UTF_8), new OpenOption[0]);
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunCache] Saved: NAT={}, mapped={}:{}", string, string2, n);
+                VoxLinkMod.LOGGER.info("[StunCache] Saved: NAT={}, mapped={}:{}", new Object[]{string, string2, n});
             }
             catch (Exception exception) {
-                LogHelper.logDebug(VoxLinkMod.LOGGER, "[StunCache] Save failed: {}", (Object)exception.getMessage());
+                VoxLinkMod.LOGGER.debug("[StunCache] Save failed: {}", (Object)exception.getMessage());
             }
         } else {
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[StunCache] Skip save: mapped address empty");
+            VoxLinkMod.LOGGER.info("[StunCache] Skip save: mapped address empty");
         }
     }
 

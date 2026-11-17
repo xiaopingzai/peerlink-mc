@@ -1,0 +1,48 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven { url = 'https://maven.minecraftforge.net/' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+
+sourceCompatibility = targetCompatibility = '1.8'
+
+compileJava {
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+    options.encoding = 'UTF-8'
+}
+
+minecraft {
+    version = "1.11.2-13.20.0.2308"
+    mappings = "snapshot_20170612"
+    // 反编译恢复源码仍带 CFR 产物与 SRG 名；stock MDK 需先做名称对齐才能编译。
+}
+
+version = project.mod_version
+group = 'icu.wuhui.voxlink'
+archivesBaseName = 'peerlink-mc-1.11.2'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // 第三方依赖（ViaVersion/ViaLegacy/ViaRewind/Mixin/fastutil/gson/slf4j）不在本源码树，
+    // 恢复可构建工程时按官方仓库另行接入。
+}
+
+jar {
+    manifest {
+        attributes(
+            'Manifest-Version': '1.0',
+            'FMLCorePluginContainsFMLMod': 'true'
+        )
+    }
+}

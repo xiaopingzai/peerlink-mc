@@ -10,7 +10,6 @@
  */
 package icu.wuhui.voxlink.network;
 
-import icu.wuhui.voxlink.LogHelper;
 import icu.wuhui.voxlink.network.ReliableUdpTransport;
 import java.io.IOException;
 import java.io.InputStream;
@@ -87,7 +86,7 @@ public class P2PBridge {
             try {
                 ServerSocket serverSocket = new ServerSocket(0, 50, InetAddress.getByName("0.0.0.0"));
                 int n2 = serverSocket.getLocalPort();
-                LogHelper.logInfo(LOGGER, "Host bridge listening on port {}, forwarding to MC port {}", (Object)n2, (Object)n);
+                LOGGER.info("Host bridge listening on port {}, forwarding to MC port {}", (Object)n2, (Object)n);
                 ExecutorService executorService = P2PBridge.getOrCreateExecutor();
                 executorService.submit(() -> P2PBridge.acceptHostConnections(serverSocket, n));
                 Class<P2PBridge> clazz = P2PBridge.class;
@@ -101,7 +100,7 @@ public class P2PBridge {
                 }
             }
             catch (IOException iOException) {
-                LogHelper.logError(LOGGER, "Failed to start host bridge: {}", (Object)iOException.getMessage());
+                LOGGER.error("Failed to start host bridge: {}", (Object)iOException.getMessage());
                 running.set(false);
                 return -1;
             }
@@ -127,7 +126,7 @@ public class P2PBridge {
                 socket.setTcpNoDelay(true);
                 socket.setSendBufferSize(32768);
                 socket.setReceiveBufferSize(32768);
-                LogHelper.logInfo(LOGGER, "P2P client connected from {}", (Object)socket.getRemoteSocketAddress());
+                LOGGER.info("P2P client connected from {}", (Object)socket.getRemoteSocketAddress());
                 Socket socket2 = new Socket();
                 socket2.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), n), 10000);
                 socket2.setTcpNoDelay(true);
@@ -149,7 +148,7 @@ public class P2PBridge {
                     }
                 }
                 if (!running.get()) continue;
-                LogHelper.logError(LOGGER, "Error accepting P2P connection: {}", (Object)iOException.getMessage());
+                LOGGER.error("Error accepting P2P connection: {}", (Object)iOException.getMessage());
             }
         }
     }
@@ -169,7 +168,7 @@ public class P2PBridge {
                 InetAddress.getByName(string);
             }
             catch (Exception exception) {
-                LogHelper.logWarn(LOGGER, "IPv6 address pre-resolution failed for {}: {}", (Object)string, (Object)exception.getMessage());
+                LOGGER.warn("IPv6 address pre-resolution failed for {}: {}", (Object)string, (Object)exception.getMessage());
             }
         }
         return P2PBridge.connectToHostWithRetry(string, n, 0);
@@ -197,24 +196,22 @@ public class P2PBridge {
                     return -1;
                 }
                 try {
-                    LogHelper.logInfo(LOGGER, "Joiner: connecting to host {}:{} (attempt {}/{})", string, n, n2 + 1, 4);
+                    LOGGER.info("Joiner: connecting to host {}:{} (attempt {}/{})", new Object[]{string, n, n2 + 1, 4});
                     Socket socket = P2PBridge.tryConnectWithRetry(string, n);
                     if (socket == null) {
-                        LogHelper.logError(LOGGER, "Joiner: failed to connect to host {}:{}", (Object)string, (Object)n);
+                        LOGGER.error("Joiner: failed to connect to host {}:{}", (Object)string, (Object)n);
                         running.set(false);
                         return -1;
                     }
-                    LogHelper.logInfo(LOGGER, "Joiner: connected to host {}:{}", (Object)string, (Object)n);
+                    LOGGER.info("Joiner: connected to host {}:{}", (Object)string, (Object)n);
                     ServerSocket serverSocket = new ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"));
                     int n3 = serverSocket.getLocalPort();
-                    Class<P2PBridge> clazz = P2PBridge.class;
-                    Class<P2PBridge> clazz2 = P2PBridge.class;
                     synchronized (P2PBridge.class) {
                         joinerServer = serverSocket;
                         joinerPort = n3;
                         currentHostIp = string;
                         currentHostPort = n;
-                        LogHelper.logInfo(LOGGER, "Joiner: local bridge on port {}, tunneling to host {}:{}", n3, string, n);
+                        LOGGER.info("Joiner: local bridge on port {}, tunneling to host {}:{}", new Object[]{n3, string, n});
                         socket.setTcpNoDelay(true);
                         socket.setSendBufferSize(32768);
                         socket.setReceiveBufferSize(32768);
@@ -226,7 +223,7 @@ public class P2PBridge {
                     }
                 }
                 catch (IOException iOException) {
-                    LogHelper.logError(LOGGER, "Joiner: failed to create local bridge (attempt {}/{}): {}", n2 + 1, 4, iOException.getMessage());
+                    LOGGER.error("Joiner: failed to create local bridge (attempt {}/{}): {}", new Object[]{n2 + 1, 4, iOException.getMessage()});
                     running.set(false);
                     return -1;
                 }
@@ -243,11 +240,11 @@ public class P2PBridge {
                                     completableFuture.complete(-1);
                                     return;
                                 }
-                                P2PBridge.connectToHostWithRetry(string, n, n2 + 1).whenComplete((n, throwable) -> {
+                                P2PBridge.connectToHostWithRetry(string, n, n2 + 1).whenComplete((port, throwable) -> {
                                     if (throwable != null) {
                                         completableFuture.completeExceptionally((Throwable)throwable);
                                     } else {
-                                        completableFuture.complete(n);
+                                        completableFuture.complete(port);
                                     }
                                 });
                             }
@@ -300,24 +297,22 @@ public class P2PBridge {
                     return -1;
                 }
                 try {
-                    LogHelper.logInfo(LOGGER, "Joiner: connecting to host [{}]:{} (attempt {}/{})", string, n, n2 + 1, 4);
+                    LOGGER.info("Joiner: connecting to host [{}]:{} (attempt {}/{})", new Object[]{string, n, n2 + 1, 4});
                     Socket socket = P2PBridge.tryConnectWithRetry(string, n);
                     if (socket == null) {
-                        LogHelper.logError(LOGGER, "Joiner: failed to connect to host [{}]:{}", (Object)string, (Object)n);
+                        LOGGER.error("Joiner: failed to connect to host [{}]:{}", (Object)string, (Object)n);
                         running.set(false);
                         return -1;
                     }
-                    LogHelper.logInfo(LOGGER, "Joiner: connected to host [{}]:{}", (Object)string, (Object)n);
+                    LOGGER.info("Joiner: connected to host [{}]:{}", (Object)string, (Object)n);
                     ServerSocket serverSocket = new ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"));
                     int n3 = serverSocket.getLocalPort();
-                    Class<P2PBridge> clazz = P2PBridge.class;
-                    Class<P2PBridge> clazz2 = P2PBridge.class;
                     synchronized (P2PBridge.class) {
                         joinerServer = serverSocket;
                         joinerPort = n3;
                         currentHostIp = string;
                         currentHostPort = n;
-                        LogHelper.logInfo(LOGGER, "Joiner: local bridge on port {}, tunneling to host [{}]:{}", n3, string, n);
+                        LOGGER.info("Joiner: local bridge on port {}, tunneling to host [{}]:{}", new Object[]{n3, string, n});
                         socket.setTcpNoDelay(true);
                         socket.setSendBufferSize(32768);
                         socket.setReceiveBufferSize(32768);
@@ -329,7 +324,7 @@ public class P2PBridge {
                     }
                 }
                 catch (IOException iOException) {
-                    LogHelper.logError(LOGGER, "Joiner: failed to create IPv6 local bridge (attempt {}/{}): {}", n2 + 1, 4, iOException.getMessage());
+                    LOGGER.error("Joiner: failed to create IPv6 local bridge (attempt {}/{}): {}", new Object[]{n2 + 1, 4, iOException.getMessage()});
                     running.set(false);
                     return -1;
                 }
@@ -346,11 +341,11 @@ public class P2PBridge {
                                     completableFuture.complete(-1);
                                     return;
                                 }
-                                P2PBridge.connectToHostIpv6WithRetry(string, n, n2 + 1).whenComplete((n, throwable) -> {
+                                P2PBridge.connectToHostIpv6WithRetry(string, n, n2 + 1).whenComplete((port, throwable) -> {
                                     if (throwable != null) {
                                         completableFuture.completeExceptionally((Throwable)throwable);
                                     } else {
-                                        completableFuture.complete(n);
+                                        completableFuture.complete(port);
                                     }
                                 });
                             }
@@ -396,7 +391,7 @@ public class P2PBridge {
                 socket2.setTcpNoDelay(true);
                 socket2.setSendBufferSize(32768);
                 socket2.setReceiveBufferSize(32768);
-                LogHelper.logInfo(LOGGER, "Joiner: MC client connected to local bridge (pre-connected)");
+                LOGGER.info("Joiner: MC client connected to local bridge (pre-connected)");
                 object2 = null;
                 if (bl && socket != null && !socket.isClosed()) {
                     object2 = socket;
@@ -405,26 +400,27 @@ public class P2PBridge {
                     object2 = P2PBridge.tryConnectWithRetry(currentHostIp, currentHostPort);
                 }
                 if (object2 == null) {
-                    LogHelper.logError(LOGGER, "Joiner: failed to establish host channel for MC client");
+                    LOGGER.error("Joiner: failed to establish host channel for MC client");
                     try {
                         socket2.close();
                     }
                     catch (IOException iOException) {}
                     continue;
                 }
-                object = ((Socket)object2).getInetAddress() instanceof Inet6Address ? "MC->Host(IPv6)" : "MC->Host";
+                String pairLabel = ((Socket)object2).getInetAddress() instanceof Inet6Address ? "MC->Host(IPv6)" : "MC->Host";
+                object = pairLabel;
                 String string = ((Socket)object2).getInetAddress() instanceof Inet6Address ? "Host(IPv6)->MC" : "Host->MC";
                 BridgePair bridgePair = new BridgePair(socket2, (Socket)object2);
                 activePairs.add(bridgePair);
                 ExecutorService executorService = P2PBridge.getOrCreateExecutor();
-                executorService.submit(() -> P2PBridge.lambda$acceptJoinerConnectionPreconnected$14(bridgePair, (String)object));
+                executorService.submit(() -> P2PBridge.acceptPreconnectedBody(bridgePair, pairLabel));
                 executorService.submit(() -> P2PBridge.bridge(bridgePair, bridgePair.mc, bridgePair.client, string));
             }
             return;
         }
         catch (IOException iOException) {
             if (running.get()) {
-                LogHelper.logError(LOGGER, "Joiner: error accepting MC connection: {}", (Object)iOException.getMessage());
+                LOGGER.error("Joiner: error accepting MC connection: {}", (Object)iOException.getMessage());
             }
             if (socket == null) {
                 return;
@@ -432,7 +428,12 @@ public class P2PBridge {
             if (socket.isClosed()) {
                 return;
             }
-            socket.close();
+            try {
+                socket.close();
+            }
+            catch (IOException iOException2) {
+                // empty catch block
+            }
             return;
         }
         finally {
@@ -475,10 +476,10 @@ public class P2PBridge {
                 ((Socket)object2).setTcpNoDelay(true);
                 ((Socket)object2).setSendBufferSize(32768);
                 ((Socket)object2).setReceiveBufferSize(32768);
-                LogHelper.logInfo(LOGGER, "Joiner: MC client connected to local bridge");
+                LOGGER.info("Joiner: MC client connected to local bridge");
                 object = P2PBridge.tryConnectWithRetry(currentHostIp, currentHostPort);
                 if (object == null) {
-                    LogHelper.logError(LOGGER, "Joiner: failed to connect to host {}:{}", (Object)currentHostIp, (Object)currentHostPort);
+                    LOGGER.error("Joiner: failed to connect to host {}:{}", (Object)currentHostIp, (Object)currentHostPort);
                     try {
                         ((Socket)object2).close();
                     }
@@ -494,7 +495,7 @@ public class P2PBridge {
             }
             catch (IOException iOException) {
                 if (!running.get()) continue;
-                LogHelper.logError(LOGGER, "Joiner: error accepting MC connection: {}", (Object)iOException.getMessage());
+                LOGGER.error("Joiner: error accepting MC connection: {}", (Object)iOException.getMessage());
             }
         }
         tcpJoinerBridgeConnectedV4.set(false);
@@ -504,8 +505,6 @@ public class P2PBridge {
         catch (IOException iOException) {
             // empty catch block
         }
-        object2 = P2PBridge.class;
-        object = P2PBridge.class;
         synchronized (P2PBridge.class) {
             if (joinerServer == serverSocket) {
                 joinerServer = null;
@@ -539,10 +538,10 @@ public class P2PBridge {
                 ((Socket)object2).setTcpNoDelay(true);
                 ((Socket)object2).setSendBufferSize(32768);
                 ((Socket)object2).setReceiveBufferSize(32768);
-                LogHelper.logInfo(LOGGER, "Joiner: MC client connected to IPv6 local bridge");
+                LOGGER.info("Joiner: MC client connected to IPv6 local bridge");
                 object = P2PBridge.tryConnectWithRetry(string, n);
                 if (object == null) {
-                    LogHelper.logError(LOGGER, "Joiner: failed to connect to host [{}]:{}", (Object)string, (Object)n);
+                    LOGGER.error("Joiner: failed to connect to host [{}]:{}", (Object)string, (Object)n);
                     try {
                         ((Socket)object2).close();
                     }
@@ -558,7 +557,7 @@ public class P2PBridge {
             }
             catch (IOException iOException) {
                 if (!running.get()) continue;
-                LogHelper.logError(LOGGER, "Joiner: error accepting MC connection (IPv6): {}", (Object)iOException.getMessage());
+                LOGGER.error("Joiner: error accepting MC connection (IPv6): {}", (Object)iOException.getMessage());
             }
         }
         tcpJoinerBridgeConnectedV6.set(false);
@@ -568,8 +567,6 @@ public class P2PBridge {
         catch (IOException iOException) {
             // empty catch block
         }
-        object2 = P2PBridge.class;
-        object = P2PBridge.class;
         synchronized (P2PBridge.class) {
             if (joinerServer == serverSocket) {
                 joinerServer = null;
@@ -588,7 +585,7 @@ public class P2PBridge {
             Socket socket = null;
             try {
                 InetSocketAddress inetSocketAddress;
-                LogHelper.logInfo(LOGGER, "Joiner: connecting to {}:{} (attempt {}/{})", string, n, i, 3);
+                LOGGER.info("Joiner: connecting to {}:{} (attempt {}/{})", new Object[]{string, n, i, 3});
                 socket = new Socket();
                 socket.setTcpNoDelay(true);
                 socket.setSendBufferSize(32768);
@@ -604,7 +601,7 @@ public class P2PBridge {
                     inetSocketAddress = new InetSocketAddress(string, n);
                 }
                 socket.connect(inetSocketAddress, 10000);
-                LogHelper.logInfo(LOGGER, "Joiner: connected to {}:{}", (Object)string, (Object)n);
+                LOGGER.info("Joiner: connected to {}:{}", (Object)string, (Object)n);
                 return socket;
             }
             catch (IOException iOException) {
@@ -616,7 +613,7 @@ public class P2PBridge {
                         // empty catch block
                     }
                 }
-                LogHelper.logWarn(LOGGER, "Joiner: connect attempt {}/{} failed for {}:{} - {}", i, 3, string, n, iOException.getMessage());
+                LOGGER.warn("Joiner: connect attempt {}/{} failed for {}:{} - {}", new Object[]{i, 3, string, n, iOException.getMessage()});
                 if (i >= 3) continue;
                 try {
                     Thread.sleep(500 * i);
@@ -635,7 +632,7 @@ public class P2PBridge {
      * WARNING - Removed try catching itself - possible behaviour change.
      */
     private static void bridge(BridgePair bridgePair, Socket socket, Socket socket2, String string) {
-        LogHelper.logInfo(LOGGER, "[Bridge] {} started (from={}, to={})", string, socket.getRemoteSocketAddress(), socket2.getRemoteSocketAddress());
+        LOGGER.info("[Bridge] {} started (from={}, to={})", new Object[]{string, socket.getRemoteSocketAddress(), socket2.getRemoteSocketAddress()});
         try {
             socket.setSoTimeout(60000);
             socket.setKeepAlive(true);
@@ -658,7 +655,7 @@ public class P2PBridge {
                     continue;
                 }
                 if (bl) {
-                    LogHelper.logInfo(LOGGER, "[Bridge] {} first data: {} bytes", (Object)string, (Object)n);
+                    LOGGER.info("[Bridge] {} first data: {} bytes", (Object)string, (Object)n);
                     P2PBridge.notifyTrafficDetected();
                     bl = false;
                 }
@@ -668,7 +665,7 @@ public class P2PBridge {
         }
         catch (IOException iOException) {
             if (running.get()) {
-                LogHelper.logInfo(LOGGER, "Bridge {} closed: {}", (Object)string, (Object)iOException.getMessage());
+                LOGGER.info("Bridge {} closed: {}", (Object)string, (Object)iOException.getMessage());
             }
         }
         finally {
@@ -693,7 +690,7 @@ public class P2PBridge {
     public static synchronized void disconnect() {
         StackTraceElement[] stackTraceElementArray = new Throwable().getStackTrace();
         String string = stackTraceElementArray.length > 1 ? stackTraceElementArray[1].getClassName() + "." + stackTraceElementArray[1].getMethodName() : "?";
-        LogHelper.logInfo(LOGGER, "[P2PBridge] disconnect called from {}", (Object)string);
+        LOGGER.info("[P2PBridge] disconnect called from {}", (Object)string);
         cancelled.set(true);
         running.set(false);
         for (BridgePair object : activePairs) {
@@ -773,7 +770,7 @@ public class P2PBridge {
     public static void notifyTrafficDetected() {
         if (!trafficDetected) {
             trafficDetected = true;
-            LogHelper.logInfo(LOGGER, "Detected TCP traffic, triggering P2P punch");
+            LOGGER.info("Detected TCP traffic, triggering P2P punch");
         }
     }
 
@@ -806,11 +803,11 @@ public class P2PBridge {
             activeUdpTransports.add(reliableUdpTransport2);
             reliableUdpTransport2.start();
             P2PBridge.getOrCreateExecutor().execute(() -> P2PBridge.acceptUdpJoinerConnections(joinerServer, reliableUdpTransport2));
-            LogHelper.logInfo(LOGGER, "UDP joiner bridge started on port {}", (Object)joinerPort);
+            LOGGER.info("UDP joiner bridge started on port {}", (Object)joinerPort);
             return joinerPort;
         }
         catch (IOException iOException) {
-            LogHelper.logError(LOGGER, "Failed to start UDP joiner bridge: {}", (Object)iOException.getMessage());
+            LOGGER.error("Failed to start UDP joiner bridge: {}", (Object)iOException.getMessage());
             running.set(false);
             if (joinerServer != null && !joinerServer.isClosed()) {
                 try {
@@ -830,8 +827,8 @@ public class P2PBridge {
      * WARNING - Removed try catching itself - possible behaviour change.
      */
     private static void acceptUdpJoinerConnections(ServerSocket serverSocket, ReliableUdpTransport reliableUdpTransport) {
-        Object object;
-        Object object2;
+        Socket prevSocket;
+        Socket accepted;
         try {
             serverSocket.setSoTimeout(30000);
         }
@@ -843,44 +840,45 @@ public class P2PBridge {
         while (running.get() && !serverSocket.isClosed() && !joinerBridgeConnected.get()) {
             try {
                 try {
-                    object2 = serverSocket.accept();
+                    accepted = serverSocket.accept();
                 }
                 catch (SocketTimeoutException socketTimeoutException) {
                     if (++n < 2) continue;
-                    LogHelper.logWarn(LOGGER, "[Bridge] {} half-open detected ({} timeouts), closing", (Object)string, (Object)n);
+                    LOGGER.warn("[Bridge] {} half-open detected ({} timeouts), closing", (Object)string, (Object)n);
                     break;
                 }
                 n = 0;
-                ((Socket)object2).setTcpNoDelay(true);
-                ((Socket)object2).setSendBufferSize(32768);
-                ((Socket)object2).setReceiveBufferSize(32768);
+                accepted.setTcpNoDelay(true);
+                accepted.setSendBufferSize(32768);
+                accepted.setReceiveBufferSize(32768);
                 if (currentJoinerMcSocketLock.compareAndSet(false, true)) {
                     try {
-                        object = currentJoinerMcSocket;
-                        if (object != null && !((Socket)object).isClosed()) {
-                            LogHelper.logInfo(LOGGER, "UDP: Closing previous MC client connection");
+                        prevSocket = currentJoinerMcSocket;
+                        if (prevSocket != null && !prevSocket.isClosed()) {
+                            LOGGER.info("UDP: Closing previous MC client connection");
                             try {
-                                ((Socket)object).close();
+                                prevSocket.close();
                             }
                             catch (IOException iOException) {
                                 // empty catch block
                             }
                         }
-                        currentJoinerMcSocket = object2;
+                        currentJoinerMcSocket = accepted;
                     }
                     finally {
                         currentJoinerMcSocketLock.set(false);
                     }
                 }
                 joinerBridgeConnected.set(true);
-                LogHelper.logInfo(LOGGER, "UDP: MC client connected to joiner bridge");
-                object = P2PBridge.getOrCreateExecutor();
-                object.submit(() -> P2PBridge.lambda$acceptUdpJoinerConnections$23(reliableUdpTransport, (Socket)object2));
-                P2PBridge.bridgeMcToUdp(reliableUdpTransport, (Socket)object2, null);
+                LOGGER.info("UDP: MC client connected to joiner bridge");
+                Socket acceptedFinal = accepted;
+                ExecutorService executor = P2PBridge.getOrCreateExecutor();
+                executor.submit(() -> P2PBridge.acceptUdpBody(reliableUdpTransport, acceptedFinal));
+                P2PBridge.bridgeMcToUdp(reliableUdpTransport, accepted, null);
             }
             catch (IOException iOException) {
                 if (!running.get() || serverSocket.isClosed()) continue;
-                LogHelper.logWarn(LOGGER, "UDP joiner bridge accept error: {}", (Object)iOException.getMessage());
+                LOGGER.warn("UDP joiner bridge accept error: {}", (Object)iOException.getMessage());
             }
         }
         joinerBridgeConnected.set(false);
@@ -890,8 +888,6 @@ public class P2PBridge {
         catch (IOException iOException) {
             // empty catch block
         }
-        object2 = P2PBridge.class;
-        object = P2PBridge.class;
         synchronized (P2PBridge.class) {
             if (joinerServer == serverSocket) {
                 joinerServer = null;
@@ -910,37 +906,37 @@ public class P2PBridge {
             running.set(true);
             if (n <= 0) {
                 try {
-                    IntegratedServer integratedServer = Minecraft.func_71410_x().func_71401_C();
-                    LogHelper.logInfo(LOGGER, "Bridge port probe: integrated server={}", (Object)integratedServer);
+                    IntegratedServer integratedServer = Minecraft.getMinecraft().getIntegratedServer();
+                    LOGGER.info("Bridge port probe: integrated server={}", (Object)integratedServer);
                     if (integratedServer == null) break block8;
                     try {
-                        Method method = MinecraftServer.class.getMethod("func_71215_F", new Class[0]);
+                        Method method = MinecraftServer.class.getMethod("getServerPort", new Class[0]);
                         n = (Integer)method.invoke(integratedServer, new Object[0]);
-                        LogHelper.logInfo(LOGGER, "Bridge port probe: func_71215_F returned {}", (Object)n);
+                        LOGGER.info("Bridge port probe: getServerPort returned {}", (Object)n);
                     }
                     catch (Exception exception) {
-                        LogHelper.logWarn(LOGGER, "Bridge port probe: func_71215_F failed: {}", (Object)exception.toString());
+                        LOGGER.warn("Bridge port probe: getServerPort failed: {}", (Object)exception.toString());
                         try {
-                            Field field = MinecraftServer.class.getDeclaredField("field_71319_s");
+                            Field field = MinecraftServer.class.getDeclaredField("serverPort");
                             field.setAccessible(true);
                             n = field.getInt(integratedServer);
-                            LogHelper.logInfo(LOGGER, "Bridge port probe: field_71319_s = {}", (Object)n);
+                            LOGGER.info("Bridge port probe: serverPort = {}", (Object)n);
                         }
                         catch (Exception exception2) {
-                            LogHelper.logWarn(LOGGER, "Bridge port probe: field_71319_s failed: {}", (Object)exception2.toString());
+                            LOGGER.warn("Bridge port probe: serverPort failed: {}", (Object)exception2.toString());
                         }
                     }
                 }
                 catch (Exception exception) {
-                    LogHelper.logWarn(LOGGER, "Bridge port probe: integrated server lookup failed: {}", (Object)exception.toString());
+                    LOGGER.warn("Bridge port probe: integrated server lookup failed: {}", (Object)exception.toString());
                 }
             }
         }
         if (n <= 0) {
             n = 25565;
-            LogHelper.logWarn(LOGGER, "Host bridge mcPort was invalid, fell back to 25565 for client {}", (Object)string);
+            LOGGER.warn("Host bridge mcPort was invalid, fell back to 25565 for client {}", (Object)string);
         }
-        LogHelper.logInfo(LOGGER, "Host bridge starting for client {}, forwarding to MC port {}", (Object)string, (Object)n);
+        LOGGER.info("Host bridge starting for client {}, forwarding to MC port {}", (Object)string, (Object)n);
         int n2 = n;
         P2PBridge.getOrCreateExecutor().execute(() -> {
             block8: {
@@ -954,7 +950,7 @@ public class P2PBridge {
                         try {
                             Thread.sleep(15000L);
                             if (!atomicBoolean.get() && reliableUdpTransport.isConnected() && running.get()) {
-                                LogHelper.logWarn(LOGGER, "UDP host bridge for client {} first packet timeout (15s), request ICE restart", (Object)string);
+                                LOGGER.warn("UDP host bridge for client {} first packet timeout (15s), request ICE restart", (Object)string);
                                 reliableUdpTransport.requestIceRestart();
                             }
                         }
@@ -964,10 +960,10 @@ public class P2PBridge {
                     }, "VoxLink-BridgeWatchdog");
                     thread.setDaemon(true);
                     thread.start();
-                    int n2 = inputStream.read(byArray);
+                    int readLen = inputStream.read(byArray);
                     atomicBoolean.set(true);
-                    if (n2 <= 0) {
-                        throw new IOException("UDP stream closed before first packet (read=" + n2 + ")");
+                    if (readLen <= 0) {
+                        throw new IOException("UDP stream closed before first packet (read=" + readLen + ")");
                     }
                     socket = new Socket();
                     socket.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), n2), 10000);
@@ -975,16 +971,16 @@ public class P2PBridge {
                     socket.setSendBufferSize(32768);
                     socket.setReceiveBufferSize(32768);
                     OutputStream outputStream = socket.getOutputStream();
-                    outputStream.write(byArray, 0, n2);
+                    outputStream.write(byArray, 0, readLen);
                     outputStream.flush();
-                    LogHelper.logInfo(LOGGER, "UDP host bridge for client {} connected to MC server on port {} (lazy, first packet {} bytes)", string, n2, n2);
+                    LOGGER.info("UDP host bridge for client {} connected to MC server on port {} (lazy, first packet {} bytes)", new Object[]{string, n2, readLen});
                     ExecutorService executorService = P2PBridge.getOrCreateExecutor();
                     Socket socket2 = socket;
                     executorService.submit(() -> P2PBridge.bridgeUdpToMc(reliableUdpTransport, socket2, runnable2));
                     P2PBridge.bridgeMcToUdp(reliableUdpTransport, socket2, runnable2);
                 }
                 catch (IOException iOException) {
-                    LogHelper.logError(LOGGER, "UDP host bridge for client {} failed to connect to MC server: {}", (Object)string, (Object)iOException.getMessage());
+                    LOGGER.error("UDP host bridge for client {} failed to connect to MC server: {}", (Object)string, (Object)iOException.getMessage());
                     try {
                         reliableUdpTransport.close();
                     }
@@ -1021,11 +1017,11 @@ public class P2PBridge {
                 outputStream.write(byArray, 0, n);
                 outputStream.flush();
             }
-            LogHelper.logInfo(LOGGER, "UDP->MC exit: running={} conn={} mcClosed={} read={}", running.get(), reliableUdpTransport.isConnected(), socket.isClosed(), n);
+            LOGGER.info("UDP->MC exit: running={} conn={} mcClosed={} read={}", new Object[]{running.get(), reliableUdpTransport.isConnected(), socket.isClosed(), n});
         }
         catch (IOException iOException) {
             if (running.get()) {
-                LogHelper.logInfo(LOGGER, "UDP->MC bridge closed: {}", (Object)iOException.getMessage());
+                LOGGER.info("UDP->MC bridge closed: {}", (Object)iOException.getMessage());
             }
         }
         finally {
@@ -1058,11 +1054,11 @@ public class P2PBridge {
                 outputStream.write(byArray, 0, n);
                 outputStream.flush();
             }
-            LogHelper.logInfo(LOGGER, "MC->UDP exit: running={} conn={} mcClosed={} read={}", running.get(), reliableUdpTransport.isConnected(), socket.isClosed(), n);
+            LOGGER.info("MC->UDP exit: running={} conn={} mcClosed={} read={}", new Object[]{running.get(), reliableUdpTransport.isConnected(), socket.isClosed(), n});
         }
         catch (IOException iOException) {
             if (running.get()) {
-                LogHelper.logInfo(LOGGER, "MC->UDP bridge closed: {}", (Object)iOException.getMessage());
+                LOGGER.info("MC->UDP bridge closed: {}", (Object)iOException.getMessage());
             }
         }
         finally {
@@ -1081,11 +1077,11 @@ public class P2PBridge {
         }
     }
 
-    private static /* synthetic */ void lambda$acceptUdpJoinerConnections$23(ReliableUdpTransport reliableUdpTransport, Socket socket) {
+    private static void acceptUdpBody(ReliableUdpTransport reliableUdpTransport, Socket socket) {
         P2PBridge.bridgeUdpToMc(reliableUdpTransport, socket, null);
     }
 
-    private static /* synthetic */ void lambda$acceptJoinerConnectionPreconnected$14(BridgePair bridgePair, String string) {
+    private static void acceptPreconnectedBody(BridgePair bridgePair, String string) {
         P2PBridge.bridge(bridgePair, bridgePair.client, bridgePair.mc, string);
     }
 

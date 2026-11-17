@@ -31,18 +31,18 @@ extends VoxLinkScreenBase {
     }
 
     @Override
-    public void func_73866_w_() {
-        super.func_73866_w_();
-        int n = this.field_146294_l / 2;
-        int n2 = this.field_146295_m / 2 - 30;
+    public void initGui() {
+        super.initGui();
+        int n = this.width / 2;
+        int n2 = this.height / 2 - 30;
         RoomInfo roomInfo = this.getRoom();
         if (roomInfo != null && roomInfo.isHost()) {
-            this.addButton(2, n - 100, n2, 200, 20, I18n.func_135052_a((String)"voxlink.gui.close_room", (Object[])new Object[0]));
-            this.addButton(1, n - 100, n2 + 26, 200, 20, I18n.func_135052_a((String)"voxlink.gui.leave_room", (Object[])new Object[0]));
+            this.addButton(2, n - 100, n2, 200, 20, I18n.format((String)"voxlink.gui.close_room", (Object[])new Object[0]));
+            this.addButton(1, n - 100, n2 + 26, 200, 20, I18n.format((String)"voxlink.gui.leave_room", (Object[])new Object[0]));
         } else {
-            this.addButton(1, n - 100, n2, 200, 20, I18n.func_135052_a((String)"voxlink.gui.leave_room", (Object[])new Object[0]));
+            this.addButton(1, n - 100, n2, 200, 20, I18n.format((String)"voxlink.gui.leave_room", (Object[])new Object[0]));
         }
-        this.addButton(3, n - 100, n2 + 52, 200, 20, I18n.func_135052_a((String)"voxlink.gui.room_info", (Object[])new Object[0]));
+        this.addButton(3, n - 100, n2 + 52, 200, 20, I18n.format((String)"voxlink.gui.room_info", (Object[])new Object[0]));
     }
 
     private RoomInfo getRoom() {
@@ -51,48 +51,48 @@ extends VoxLinkScreenBase {
     }
 
     @Override
-    public void func_73863_a(int n, int n2, float f) {
-        super.func_73863_a(n, n2, f);
+    public void drawScreen(int n, int n2, float f) {
+        super.drawScreen(n, n2, f);
         RoomInfo roomInfo = this.getRoom();
-        int n3 = this.field_146294_l / 2;
+        int n3 = this.width / 2;
         if (roomInfo != null) {
-            String string = I18n.func_135052_a((String)"voxlink.room_code", (Object[])new Object[]{roomInfo.getCode()});
-            this.field_146289_q.func_78276_b(string, (this.field_146294_l - this.field_146289_q.func_78256_a(string)) / 2, this.field_146295_m / 2 - 70, -1);
-            String string2 = I18n.func_135052_a((String)"voxlink.room_players", (Object[])new Object[]{roomInfo.getCurrentPlayers(), roomInfo.getMaxPlayers()});
-            this.field_146289_q.func_78276_b(string2, (this.field_146294_l - this.field_146289_q.func_78256_a(string2)) / 2, this.field_146295_m / 2 - 50, -5592406);
+            String string = I18n.format((String)"voxlink.room_code", (Object[])new Object[]{roomInfo.getCode()});
+            this.fontRenderer.drawString(string, (this.width - this.fontRenderer.getStringWidth(string)) / 2, this.height / 2 - 70, -1);
+            String string2 = I18n.format((String)"voxlink.room_players", (Object[])new Object[]{roomInfo.getCurrentPlayers(), roomInfo.getMaxPlayers()});
+            this.fontRenderer.drawString(string2, (this.width - this.fontRenderer.getStringWidth(string2)) / 2, this.height / 2 - 50, -5592406);
         } else {
-            this.field_146289_q.func_78276_b(I18n.func_135052_a((String)"voxlink.error.not_in_room", (Object[])new Object[0]), (this.field_146294_l - this.field_146289_q.func_78256_a(I18n.func_135052_a((String)"voxlink.error.not_in_room", (Object[])new Object[0]))) / 2, this.field_146295_m / 2 - 10, -43691);
+            this.fontRenderer.drawString(I18n.format((String)"voxlink.error.not_in_room", (Object[])new Object[0]), (this.width - this.fontRenderer.getStringWidth(I18n.format((String)"voxlink.error.not_in_room", (Object[])new Object[0]))) / 2, this.height / 2 - 10, -43691);
         }
     }
 
     @Override
-    protected void func_146284_a(GuiButton guiButton) {
+    protected void actionPerformed(GuiButton guiButton) {
         RoomManager roomManager = VoxLinkMod.getRoomManager();
-        if (guiButton.field_146127_k == 1) {
+        if (guiButton.id == 1) {
             if (roomManager != null) {
                 roomManager.leaveRoom();
             }
-            Minecraft.func_71410_x().func_147108_a(this.parentScreen);
-        } else if (guiButton.field_146127_k == 2) {
+            Minecraft.getMinecraft().displayGuiScreen(this.parentScreen);
+        } else if (guiButton.id == 2) {
             if (roomManager != null) {
                 roomManager.closeRoom();
             }
-            Minecraft.func_71410_x().func_147108_a(this.parentScreen);
-        } else if (guiButton.field_146127_k == 3) {
+            Minecraft.getMinecraft().displayGuiScreen(this.parentScreen);
+        } else if (guiButton.id == 3) {
             if (roomManager != null) {
                 roomManager.showRoomInfo();
             }
         } else {
-            super.func_146284_a(guiButton);
+            super.actionPerformed(guiButton);
         }
     }
 
     @Override
     protected void actionPerformedBack() {
         if (this.parentScreen != null) {
-            Minecraft.func_71410_x().func_147108_a(this.parentScreen);
+            Minecraft.getMinecraft().displayGuiScreen(this.parentScreen);
         } else {
-            Minecraft.func_71410_x().func_147108_a((GuiScreen)null);
+            Minecraft.getMinecraft().displayGuiScreen((GuiScreen)null);
         }
     }
 }

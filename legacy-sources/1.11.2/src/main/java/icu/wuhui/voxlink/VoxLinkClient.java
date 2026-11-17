@@ -29,6 +29,7 @@ package icu.wuhui.voxlink;
 import icu.wuhui.voxlink.LogHelper;
 import icu.wuhui.voxlink.VoxLinkMod;
 import icu.wuhui.voxlink.network.PeerServer;
+import icu.wuhui.voxlink.network.UpdateChecker;
 import icu.wuhui.voxlink.network.SignalingClient;
 import icu.wuhui.voxlink.network.StunProbe;
 import icu.wuhui.voxlink.network.TopologyClient;
@@ -88,15 +89,15 @@ public class VoxLinkClient {
 
                 @Override
                 public void run() {
-                    final Minecraft minecraft = Minecraft.func_71410_x();
-                    if (minecraft == null || minecraft.field_71439_g == null) {
+                    final Minecraft minecraft = Minecraft.getMinecraft();
+                    if (minecraft == null || minecraft.player == null) {
                         return;
                     }
-                    minecraft.func_152344_a(new Runnable(){
+                    minecraft.addScheduledTask(new Runnable(){
 
                         @Override
                         public void run() {
-                            if (minecraft.field_71439_g == null) {
+                            if (minecraft.player == null) {
                                 return;
                             }
                             RoomManager roomManager = VoxLinkMod.getRoomManager();
@@ -115,8 +116,8 @@ public class VoxLinkClient {
                                     string2 = "voxlink.room_lost.host_closed";
                                 }
                             }
-                            VoxLinkChat.print((ITextComponent)new TextComponentString(TextFormatting.RED + I18n.func_135052_a((String)"voxlink.chat.error_prefix", (Object[])new Object[0]) + I18n.func_135052_a((String)string2, (Object[])new Object[0])));
-                            VoxLinkChat.print((ITextComponent)new TextComponentString(TextFormatting.GRAY + I18n.func_135052_a((String)"voxlink.room_lost.hint", (Object[])new Object[0])));
+                            VoxLinkChat.print((ITextComponent)new TextComponentString(TextFormatting.RED + I18n.format((String)"voxlink.chat.error_prefix", (Object[])new Object[0]) + I18n.format((String)string2, (Object[])new Object[0])));
+                            VoxLinkChat.print((ITextComponent)new TextComponentString(TextFormatting.GRAY + I18n.format((String)"voxlink.room_lost.hint", (Object[])new Object[0])));
                         }
                     });
                 }
@@ -134,18 +135,18 @@ public class VoxLinkClient {
     }
 
     private static void openScreen(GuiScreen guiScreen) {
-        Minecraft minecraft = Minecraft.func_71410_x();
+        Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft == null) {
             return;
         }
         final VoxLinkScreen voxLinkScreen = guiScreen != null ? new VoxLinkScreen(guiScreen) : new VoxLinkScreen();
-        minecraft.func_152344_a(new Runnable(){
+        minecraft.addScheduledTask(new Runnable(){
 
             @Override
             public void run() {
-                Minecraft minecraft = Minecraft.func_71410_x();
+                Minecraft minecraft = Minecraft.getMinecraft();
                 if (minecraft != null) {
-                    minecraft.func_147108_a(voxLinkScreen);
+                    minecraft.displayGuiScreen(voxLinkScreen);
                 }
             }
         });
@@ -153,6 +154,7 @@ public class VoxLinkClient {
 
     @SubscribeEvent
     public static void onClientPlayerLoggingIn(PlayerEvent.PlayerLoggedInEvent playerLoggedInEvent) {
+        UpdateChecker.checkOnce();
     }
 
     @SubscribeEvent
@@ -165,7 +167,7 @@ public class VoxLinkClient {
         if (clientTickEvent.phase != TickEvent.Phase.END) {
             return;
         }
-        if (openScreenKey != null && openScreenKey.func_151468_f() && (minecraft = Minecraft.func_71410_x()) != null && minecraft.field_71462_r == null) {
+        if (openScreenKey != null && openScreenKey.isPressed() && (minecraft = Minecraft.getMinecraft()) != null && minecraft.currentScreen == null) {
             VoxLinkClient.openScreen(null);
         }
     }
@@ -176,19 +178,19 @@ public class VoxLinkClient {
         if (!(guiScreen instanceof GuiMainMenu) && !(guiScreen instanceof GuiIngameMenu)) {
             return;
         }
-        List list = post.getButtonList();
+        List<GuiButton> list = post.getButtonList();
         for (GuiButton guiButton : list) {
-            if (guiButton.field_146127_k != 9731) continue;
+            if (guiButton.id != 9731) continue;
             return;
         }
         int n = guiScreen instanceof GuiMainMenu ? 6 : 6;
-        list.add(new GuiButton(9731, 4, n, 76, 20, I18n.func_135052_a((String)"voxlink.gui.title", (Object[])new Object[0])));
+        list.add(new GuiButton(9731, 4, n, 76, 20, I18n.format((String)"voxlink.gui.title", (Object[])new Object[0])));
     }
 
     @SubscribeEvent
     public static void onGuiAction(GuiScreenEvent.ActionPerformedEvent.Post post) {
         GuiButton guiButton = post.getButton();
-        if (guiButton != null && guiButton.field_146127_k == 9731) {
+        if (guiButton != null && guiButton.id == 9731) {
             VoxLinkClient.openScreen(post.getGui());
         }
     }

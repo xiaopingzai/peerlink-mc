@@ -10,7 +10,6 @@
 package icu.wuhui.voxlink.network;
 
 import com.google.gson.JsonObject;
-import icu.wuhui.voxlink.LogHelper;
 import icu.wuhui.voxlink.VoxLinkMod;
 import icu.wuhui.voxlink.config.LogUploadState;
 import icu.wuhui.voxlink.config.VoxLinkConfig;
@@ -51,7 +50,7 @@ public final class LogUploadManager {
         thread.setDaemon(true);
         return thread;
     });
-    private static final AtomicReference<String> ACTIVE_CODE = new AtomicReference<Object>(null);
+    private static final AtomicReference<String> ACTIVE_CODE = new AtomicReference<String>(null);
     private static final AtomicBoolean UPLOADED = new AtomicBoolean(false);
     private static final AtomicBoolean UPLOAD_IN_FLIGHT = new AtomicBoolean(false);
     private static volatile ScheduledFuture<?> uploadFuture;
@@ -88,7 +87,7 @@ public final class LogUploadManager {
         punchStartMs = System.currentTimeMillis();
         role = bl ? "host" : "joiner";
         UPLOADED.set(false);
-        LogHelper.logInfo(VoxLinkMod.LOGGER, "[LogUpload] armed code={} role={}", (Object)activeCode, (Object)role);
+        VoxLinkMod.LOGGER.info("[LogUpload] armed code={} role={}", (Object)activeCode, (Object)role);
         LogUploadManager.reportStatus();
         if (uploadFuture != null) {
             uploadFuture.cancel(false);
@@ -117,7 +116,7 @@ public final class LogUploadManager {
             pollFuture.cancel(false);
         }
         pollFuture = SCHEDULER.schedule(LogUploadManager::pollOpponentUploaded, 5L, TimeUnit.SECONDS);
-        LogHelper.logInfo(VoxLinkMod.LOGGER, "[LogUpload] host punch started, upload timer re-armed from now");
+        VoxLinkMod.LOGGER.info("[LogUpload] host punch started, upload timer re-armed from now");
     }
 
     public static void onConnected() {
@@ -138,7 +137,7 @@ public final class LogUploadManager {
                 uploadFuture.cancel(false);
             }
             uploadFuture = SCHEDULER.schedule(LogUploadManager::runUpload, 1L, TimeUnit.SECONDS);
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[LogUpload] link dropped inside stable window, upload now");
+            VoxLinkMod.LOGGER.info("[LogUpload] link dropped inside stable window, upload now");
         }
         connectedAtMs = 0L;
     }
@@ -159,7 +158,7 @@ public final class LogUploadManager {
             return;
         }
         if (System.currentTimeMillis() - punchStartMs > 300000L) {
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[LogUpload] host wait timeout, upload anyway");
+            VoxLinkMod.LOGGER.info("[LogUpload] host wait timeout, upload anyway");
             LogUploadManager.rescheduleUploadNow();
             return;
         }
@@ -174,12 +173,12 @@ public final class LogUploadManager {
             }
             boolean bl = false;
             if (apiResponse != null && apiResponse.success && apiResponse.data != null && apiResponse.data.has("opponent")) {
-                JsonObject jsonObject = apiResponse.data.getAsJsonObject("opponent");
-                bl = jsonObject.has("uploaded") && jsonObject.get("uploaded").getAsBoolean();
+                JsonObject opponent = apiResponse.data.getAsJsonObject("opponent");
+                bl = opponent.has("uploaded") && opponent.get("uploaded").getAsBoolean();
                 boolean bl2 = bl;
             }
             if (bl) {
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[LogUpload] opponent uploaded, host upload now");
+                VoxLinkMod.LOGGER.info("[LogUpload] opponent uploaded, host upload now");
                 LogUploadManager.rescheduleUploadNow();
             } else {
                 pollFuture = SCHEDULER.schedule(LogUploadManager::pollOpponentUploaded, 5L, TimeUnit.SECONDS);
@@ -215,19 +214,19 @@ public final class LogUploadManager {
     }
 
     private static void notifyUploadedInChat() {
-        Minecraft minecraft = Minecraft.func_71410_x();
-        if (minecraft == null || minecraft.field_71439_g == null) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft == null || minecraft.player == null) {
             return;
         }
-        minecraft.func_152344_a(() -> {
-            if (minecraft.field_71439_g == null) {
+        minecraft.addScheduledTask(() -> {
+            if (minecraft.player == null) {
                 return;
             }
             try {
                 VoxLinkChat.print((ITextComponent)new TextComponentString("voxlink.log_upload.uploaded"));
             }
             catch (Exception exception) {
-                LogHelper.logDebug(VoxLinkMod.LOGGER, "[LogUpload] chat notify failed: {}", (Object)exception.getMessage());
+                VoxLinkMod.LOGGER.debug("[LogUpload] chat notify failed: {}", (Object)exception.getMessage());
             }
         });
     }
@@ -240,7 +239,7 @@ public final class LogUploadManager {
         jsonObject.addProperty("enabled", Boolean.valueOf(bl));
         LogUploadManager.postOnce(ROUTE_STATUS, jsonObject).thenAccept(apiResponse -> {
             if (!apiResponse.success) {
-                LogHelper.logWarn(VoxLinkMod.LOGGER, "[LogUpload] status report failed: {}", (Object)apiResponse.error);
+                VoxLinkMod.LOGGER.warn("[LogUpload] status report failed: {}", (Object)apiResponse.error);
             }
         });
     }
@@ -251,7 +250,7 @@ public final class LogUploadManager {
             return;
         }
         if (!LogUploadState.isLogUploadEnabled()) {
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[LogUpload] skipped, upload disabled by player");
+            VoxLinkMod.LOGGER.info("[LogUpload] skipped, upload disabled by player");
             return;
         }
         if (UPLOADED.get()) {
@@ -260,13 +259,13 @@ public final class LogUploadManager {
         if (connectedAtMs > 0L) {
             long l = System.currentTimeMillis();
             if (l - lastTransportActivityMs > 15000L) {
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[LogUpload] transport silent after connect, upload now");
+                VoxLinkMod.LOGGER.info("[LogUpload] transport silent after connect, upload now");
             } else {
                 if (l - connectedAtMs < 120000L) {
                     uploadFuture = SCHEDULER.schedule(LogUploadManager::runUpload, 15L, TimeUnit.SECONDS);
                     return;
                 }
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[LogUpload] connection stable, skip upload");
+                VoxLinkMod.LOGGER.info("[LogUpload] connection stable, skip upload");
                 return;
             }
         }
@@ -275,7 +274,7 @@ public final class LogUploadManager {
 
     private static void uploadWithRetry(String string, int n) {
         if (!UPLOAD_IN_FLIGHT.compareAndSet(false, true)) {
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[LogUpload] upload already in flight, skip duplicate");
+            VoxLinkMod.LOGGER.info("[LogUpload] upload already in flight, skip duplicate");
             return;
         }
         byte[] byArray = LogUploadManager.buildPayload();
@@ -287,7 +286,7 @@ public final class LogUploadManager {
         completableFuture.thenAccept(apiResponse -> {
             UPLOAD_IN_FLIGHT.set(false);
             if (apiResponse.success) {
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[LogUpload] uploaded code={} role={} size={}", string, role, byArray.length);
+                VoxLinkMod.LOGGER.info("[LogUpload] uploaded code={} role={} size={}", new Object[]{string, role, byArray.length});
                 UPLOADED.set(true);
                 Runnable runnable = onUploaded;
                 if (runnable != null) {
@@ -295,10 +294,10 @@ public final class LogUploadManager {
                 }
                 LogUploadManager.notifyUploadedInChat();
             } else if (n > 1) {
-                LogHelper.logWarn(VoxLinkMod.LOGGER, "[LogUpload] upload failed ({}), retrying {} left", (Object)apiResponse.error, (Object)(n - 1));
+                VoxLinkMod.LOGGER.warn("[LogUpload] upload failed ({}), retrying {} left", (Object)apiResponse.error, (Object)(n - 1));
                 SCHEDULER.schedule(() -> LogUploadManager.uploadWithRetry(string, n - 1), 15000L, TimeUnit.MILLISECONDS);
             } else {
-                LogHelper.logWarn(VoxLinkMod.LOGGER, "[LogUpload] upload gave up, error={}", (Object)apiResponse.error);
+                VoxLinkMod.LOGGER.warn("[LogUpload] upload gave up, error={}", (Object)apiResponse.error);
             }
         });
     }
@@ -307,7 +306,7 @@ public final class LogUploadManager {
         try {
             byte[] byArray = LogUploadManager.readLogTail();
             if (byArray == null || byArray.length == 0) {
-                LogHelper.logInfo(VoxLinkMod.LOGGER, "[LogUpload] no log content, skip");
+                VoxLinkMod.LOGGER.info("[LogUpload] no log content, skip");
                 return null;
             }
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -317,7 +316,7 @@ public final class LogUploadManager {
             return byteArrayOutputStream.toByteArray();
         }
         catch (Exception exception) {
-            LogHelper.logWarn(VoxLinkMod.LOGGER, "[LogUpload] gzip failed: {}", (Object)exception.getMessage());
+            VoxLinkMod.LOGGER.warn("[LogUpload] gzip failed: {}", (Object)exception.getMessage());
             return null;
         }
     }
@@ -325,9 +324,9 @@ public final class LogUploadManager {
     private static byte[] readLogTail() {
         byte[] byArray;
         RandomAccessFile randomAccessFile;
-        File file = new File(Minecraft.func_71410_x().field_71412_D, "logs/latest.log");
+        File file = new File(Minecraft.getMinecraft().mcDataDir, "logs/latest.log");
         if (!file.isFile()) {
-            LogHelper.logInfo(VoxLinkMod.LOGGER, "[LogUpload] latest.log missing, skip");
+            VoxLinkMod.LOGGER.info("[LogUpload] latest.log missing, skip");
             return null;
         }
         long l = file.length();
@@ -339,7 +338,7 @@ public final class LogUploadManager {
             randomAccessFile = new RandomAccessFile(file, "r");
         }
         catch (FileNotFoundException fileNotFoundException) {
-            LogHelper.logWarn(VoxLinkMod.LOGGER, "[LogUpload] latest.log not found: {}", (Object)fileNotFoundException.getMessage());
+            VoxLinkMod.LOGGER.warn("[LogUpload] latest.log not found: {}", (Object)fileNotFoundException.getMessage());
             return null;
         }
         try {
@@ -359,7 +358,7 @@ public final class LogUploadManager {
                 throw throwable;
             }
             catch (Exception exception) {
-                LogHelper.logWarn(VoxLinkMod.LOGGER, "[LogUpload] read latest.log failed: {}", (Object)exception.getMessage());
+                VoxLinkMod.LOGGER.warn("[LogUpload] read latest.log failed: {}", (Object)exception.getMessage());
                 return null;
             }
         }
@@ -378,7 +377,7 @@ public final class LogUploadManager {
 
     private static CompletableFuture<Http8.Response> postJson(String string, JsonObject jsonObject) {
         String string2 = LogUploadManager.buildUrl(string);
-        String string3 = "Mozilla/5.0 (Java) VoxLink/1.1.6";
+        String string3 = "Mozilla/5.0 (Java) VoxLink/1.1.9";
         return Http8.postAsync(string2, jsonObject, string3, LogUploadManager.timeoutMs());
     }
 
@@ -386,16 +385,16 @@ public final class LogUploadManager {
         String string3 = LogUploadManager.buildUrl(string);
         String string4 = LogUploadManager.sha256(byArray);
         long l = Math.max(0L, System.currentTimeMillis() - punchStartMs);
-        String string5 = Minecraft.func_71410_x().func_110432_I().func_111285_a();
+        String string5 = Minecraft.getMinecraft().getSession().getUsername();
         HashMap<String, String> hashMap = new HashMap<String, String>();
         hashMap.put("Content-Type", "application/octet-stream");
-        hashMap.put("User-Agent", "Mozilla/5.0 (Java) VoxLink/1.1.6");
-        hashMap.put("X-VoxLink-Version", "1.1.8");
+        hashMap.put("User-Agent", "Mozilla/5.0 (Java) VoxLink/1.1.9");
+        hashMap.put("X-VoxLink-Version", "1.1.9");
         hashMap.put("X-Log-Sha256", string4);
         hashMap.put("X-Log-Role", role);
         hashMap.put("X-Log-Code", string2);
         hashMap.put("X-Log-Name", string5 == null ? "" : string5);
-        hashMap.put("X-Log-Version", "1.1.8");
+        hashMap.put("X-Log-Version", "1.1.9");
         hashMap.put("X-Log-Duration-Ms", String.valueOf(l));
         return Http8.postBytesAsync(string3, byArray, hashMap, LogUploadManager.timeoutMs()).thenApply(LogUploadManager::parseResponse);
     }
